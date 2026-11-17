@@ -10,21 +10,29 @@ const REVIEWABLE = ["SUBMITTED", "PENDING_REVIEW", "RETURNED"];
 export default function AdminPage() {
   const [applications, setApplications] = useState([]);
   const [institutions, setInstitutions] = useState([]);
+  const [onboarding, setOnboarding] = useState([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(null);
   const [message, setMessage] = useState("");
+  const [adminDrafts, setAdminDrafts] = useState({});
 
   async function loadData() {
     setLoading(true); setMessage("");
-    const [a, i] = await Promise.all([
+    const [a, i, o] = await Promise.all([
       supabase.from("institution_applications").select("*").in("status", REVIEWABLE).order("submitted_at", {ascending:true}),
-      supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true})
+      supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true}),
+      supabase.rpc("platform_institution_onboarding_overview")
     ]);
     if (a.error) setMessage(a.error.message);
     if (i.error) setMessage((p)=>p || i.error.message);
-    setApplications(a.data || []); setInstitutions(i.data || []); setLoading(false);
+    if (o.error) setMessage((p)=>p || o.error.message);
+    setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setLoading(false);
   }
   useEffect(()=>{loadData()},[]);
+
+  function readiness(id) {
+    return onboarding.find(x=>x.id===id) || {};
+  }
 
   async function reviewApplication(id, action) {
     let notes = "";
@@ -39,7 +47,37 @@ export default function AdminPage() {
     const {data,error}=await supabase.rpc("review_institution_application",{p_application_id:id,p_action:action==="RETURN"?"RETURNED":action==="REJECT"?"REJECTED":action,p_notes:notes||null});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.message||data?.error||"Institution application action failed.");setWorking(null);return}
-    setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved and onboarded as PENDING.":action==="RETURN"?"Institution application returned for correction.":"Institution application rejected and retained for audit.");
+    setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved and onboarded as PENDING.":"Institution application decision recorded.");
+    await loadData(); setWorking(null);
+  }
+
+  async function configureInstitution(id) {
+    if (!window.confirm("Complete the standard IMBOP institution configuration for this institution?")) return;
+    setWorking(id); setMessage("");
+    const {error}=await supabase.rpc("platform_configure_institution",{p_institution_id:id});
+    if(error){setMessage(error.message);setWorking(null);return}
+    setMessage("Institution configuration completed and audited.");
+    await loadData(); setWorking(null);
+  }
+
+  async function assignAdmin(id) {
+    const d=adminDrafts[id]||{};
+    const email=window.prompt("Institution administrator email:",d.email||"");
+    if(email===null)return;
+    const first=window.prompt("Administrator first name (optional):",d.first||"");
+    if(first===null)return;
+    const last=window.prompt("Administrator last name (optional):",d.last||"");
+    if(last===null)return;
+    if(!email.trim()||!email.includes("@"))return setMessage("A valid administrator email is required.");
+    setWorking(id); setMessage("");
+    const {data:{session}}=await supabase.auth.getSession();
+    if(!session?.access_token){setMessage("Your authenticated platform session is required.");setWorking(null);return}
+    const base=process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const r=await fetch(base+"/functions/v1/platform-institution-admin-invite",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,apikey:anon,"Content-Type":"application/json"},body:JSON.stringify({institution_id:id,email:email.trim(),first_name:first.trim(),last_name:last.trim()})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!data?.ok){setMessage(data?.error||"Administrator assignment failed.");setWorking(null);return}
+    setMessage(data.invited?"Administrator invitation sent and active administrator assignment created.":"Existing user assigned as institution administrator.");
     await loadData(); setWorking(null);
   }
 
@@ -70,7 +108,7 @@ export default function AdminPage() {
 
   return <><Nav authenticated/><main className="wrap admin-page">
     <div className="platform-label"><b>SE PLATFORM ADMINISTRATION</b><span>Controlled platform-owner administration</span></div>
-    <header className="admin-hero"><div><div className="eyebrow">CONTROLLED ADMIN</div><h1>SE Platform Administration</h1><p>Review institutional applications and manage the controlled institution lifecycle.</p></div></header>
+    <header className="admin-hero"><div><div className="eyebrow">CONTROLLED ADMIN</div><h1>SE Platform Administration</h1><p>Review institutional applications, complete onboarding readiness, and manage the controlled institution lifecycle.</p></div></header>
     {message&&<div className="notice admin-message" role="status">{message}</div>}
 
     <section className="admin-section">
@@ -90,6 +128,24 @@ export default function AdminPage() {
           <button className="admin-btn admin-btn-danger" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"REJECT")}>REJECT</button>
         </div>
       </article>)}</div>}
+    </section>
+
+    <section className="admin-section">
+      <div className="section-heading"><div><div className="eyebrow">ONBOARDING & READINESS</div><h2>Institution Readiness</h2></div><span className="count-badge">{onboarding.filter(x=>!x.ready_to_activate && !x.status?.toLowerCase?.().includes("deleted")).length} need action</span></div>
+      <div className="admin-grid">{institutions.filter(i=>!i.deleted_at).map(i=>{const r=readiness(i.id);return <article className="admin-card" key={i.id}>
+        <div className="admin-card-head"><div><div className="eyebrow">ONBOARDING</div><h3>{i.name}</h3></div><span className={"status-badge "+(r.ready_to_activate?"":"status-deleted")}>{r.ready_to_activate?"READY":"NOT READY"}</span></div>
+        <div className="detail-grid">
+          <div><span>Configuration</span><strong>{r.configured?"COMPLETE":"REQUIRED"}</strong></div>
+          <div><span>Active administrators</span><strong>{r.active_admin_count??0}</strong></div>
+          <div><span>Activation</span><strong>{r.ready_to_activate?"READY":"BLOCKED"}</strong></div>
+          <div><span>Admin contact</span><strong>{r.admin_emails?.length?r.admin_emails.join(", "):"None assigned"}</strong></div>
+        </div>
+        <div className="admin-actions">
+          {!r.configured&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>configureInstitution(i.id)}>COMPLETE CONFIGURATION</button>}
+          {(r.active_admin_count??0)<1&&<button className="admin-btn" disabled={working===i.id} onClick={()=>assignAdmin(i.id)}>ASSIGN / INVITE ADMIN</button>}
+          {r.ready_to_activate&&String(i.status).toUpperCase()!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>manageInstitution(i.id,"ACTIVATE")}>ACTIVATE</button>}
+        </div>
+      </article>})}</div>
     </section>
 
     <section className="admin-section">
