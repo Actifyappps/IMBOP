@@ -11,6 +11,7 @@ export default function Apply(){
   const [type,setType]=useState("");
   const [institutions,setInstitutions]=useState([]);
   const [institutionId,setInstitutionId]=useState("");
+  const [institutionName,setInstitutionName]=useState("");
   const [member,setMember]=useState(empty);
   const [institution,setInstitution]=useState(instEmpty);
   const [msg,setMsg]=useState("");
@@ -26,8 +27,10 @@ export default function Apply(){
 
   async function submitMember(e){
     e.preventDefault(); setBusy(true); setMsg("");
+    const matchedInstitution=institutions.find(x=>x.name.trim().toLowerCase()===institutionName.trim().toLowerCase());
+    if(!matchedInstitution){setBusy(false);return setMsg("Please select or enter the name of an institution currently participating in IMBOP.");}
     const {data,error}=await supabase.rpc("create_public_member_application",{
-      p_institution_id:institutionId,
+      p_institution_id:matchedInstitution.id,
       p_applicant_name:member.name.trim(),
       p_email:member.email.trim(),
       p_phone:member.phone.trim(),
@@ -85,10 +88,11 @@ export default function Apply(){
       {!type && <div className="notice">Choose <b>INSTITUTION</b> or <b>INSTITUTION MEMBER</b> to begin.</div>}
 
       {type==="member" && <form onSubmit={submitMember}>
-        <label className="label">INSTITUTION</label>
-        <select className="input" value={institutionId} onChange={e=>setInstitutionId(e.target.value)} required>
-          <option value="">Select institution</option>{institutions.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
+        <label className="label">YOUR INSTITUTION</label>
+        <input className="input" list="imbop-institutions" value={institutionName}
+          onChange={e=>{const value=e.target.value;setInstitutionName(value);const match=institutions.find(x=>x.name.toLowerCase()===value.trim().toLowerCase());setInstitutionId(match?.id||"");}}
+          placeholder="Write or select your institution" required/>
+        <datalist id="imbop-institutions">{institutions.map(x=><option key={x.id} value={x.name}/>)}</datalist>
         <div className="grid">
           <div><label className="label">APPLICANT NAME</label><input className="input" value={member.name} onChange={e=>setMemberField("name",e.target.value)} required/></div>
           <div><label className="label">EMAIL</label><input className="input" type="email" value={member.email} onChange={e=>setMemberField("email",e.target.value)} required/></div>
