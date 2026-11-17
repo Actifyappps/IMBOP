@@ -5,9 +5,9 @@
 **Owner:** Saintsway Equity (SE)  
 **Development & Hosting Partner:** Actify Inc.  
 **Repository:** Actifyappps/IMBOP  
-**Primary branch:** main
+**Primary branch:** `main`
 
-IMBOP is institutional economic network infrastructure that connects an institution, its authorised members, their businesses and structured business opportunities.
+IMBOP is **institutional economic network infrastructure** that connects an institution, its authorised members, their businesses and structured business opportunities.
 
 ### Core model
 
@@ -21,19 +21,23 @@ IMBOP is institutional economic network infrastructure that connects an institut
 
 **Know → Discover → Enquire → Connect → Benefit**
 
+---
+
 ## Product boundaries
 
 IMBOP is not a generic directory, website builder, conventional checkout marketplace, social network, accounting system, or investment/loan platform.
 
-Its institutional moat is governance: institutions control who is authorised and what institutional content becomes public.
+Its institutional moat is **governance**: institutions control who is authorised and what member content becomes public, while SE controls institutional admission to the platform.
 
 ### Publication principle
 
-> **Application ≠ Publication**
+> **Application ≠ Publication.**
 
-Anyone may apply. Only the authorised institution may publish.
+Anyone may apply. Application creates a reviewable record; it does not itself make the applicant or its content public.
 
-Canonical publication lifecycle:
+For institution members, the authorised institution controls publication of member content. For institutions, SE IMBOP controls publication/admission.
+
+### Canonical application and publication lifecycle
 
 **DRAFT → SUBMITTED → PENDING REVIEW → PUBLISHED**
 
@@ -49,6 +53,10 @@ Separate authorised removal:
 
 **PUBLISHED → UNPUBLISHED / REMOVED**
 
+**Published** and **publicly discoverable** are related but distinct controls. A record must satisfy the applicable institution, publication, status and visibility rules before it appears in public discovery.
+
+---
+
 ## Technical baseline
 
 - Next.js / TypeScript
@@ -63,25 +71,56 @@ Separate authorised removal:
 - Playwright
 - Supabase CLI / pgTAP
 
-### Security rule
+### Security boundary
 
 IMBOP is a shared multi-tenant system.
 
-The database is the security boundary. Every tenant-owned record is governed by an institutional tenant key such as `institution_id`, with PostgreSQL RLS enforcing access.
+The **database is the security boundary**. Tenant-owned records are governed by an institutional tenant key such as `institution_id`, with PostgreSQL RLS enforcing access.
 
 A browser-supplied `institution_id` is **never** proof of authority.
 
-Tests must demonstrate both permitted and denied access across at least two institutions.
+Authorization must be derived from authenticated identity, membership, role and database policy—not from UI filtering.
+
+Security tests must demonstrate both permitted and denied access across at least two institutions, including attempts to manipulate tenant identifiers from the browser.
+
+---
+
+## Source-of-truth hierarchy
+
+Different systems have different authority:
+
+| Layer | Authority |
+|---|---|
+| Notion | Product, operating and approved specification |
+| GitHub | Application source code and reviewed repository configuration |
+| Supabase | Application data, database schema and security enforcement |
+| Vercel | Build, deployment and production serving |
+| Browser | User-facing runtime evidence |
+
+**No layer silently replaces another.**
+
+In particular:
+- Vercel is not the source of application code.
+- Supabase dashboard state is not a substitute for reviewed repository migrations/configuration.
+- A browser result is evidence of behaviour, not proof of underlying authorization.
+- Production-only fixes must not be allowed to become undocumented source drift.
+
+---
 
 ## Repository rules
 
-- GitHub is the source of truth.
-- Do not treat Vercel as the source of application code.
-- Do not make production-only code changes that are absent from GitHub.
+- GitHub is the source of truth for application code.
+- Every material production change must be traceable to a repository commit.
+- Do not make production-only code changes absent from GitHub.
 - Verify file contents after every material write.
 - Keep secrets out of Git.
 - Keep migrations and security rules reviewable.
+- Keep test evidence close to the change it validates.
 - Prefer simple, testable architecture over unnecessary services.
+- Never bypass RLS merely to make a UI work.
+- Never treat successful UI rendering as proof of authorization.
+
+---
 
 ## Planned structure
 
@@ -111,6 +150,30 @@ Tests must demonstrate both permitted and denied access across at least two inst
 
 The structure is intentional: product behaviour, application code, database/security, tests and delivery evidence remain separable.
 
+---
+
+## Delivery discipline
+
+Every material change follows:
+
+**Diagnose → Isolate → Fix → Test → Regression-check → Verify source → Deploy → Verify production**
+
+A successful build is not sufficient. A change is accepted only after the relevant runtime behaviour and security boundary have been checked.
+
+### Minimum regression expectations
+
+Depending on the change, verify:
+- affected routes load successfully
+- relevant database/RPC contracts still work
+- tenant isolation remains intact
+- role boundaries remain intact
+- publication rules remain enforced
+- public discovery reflects only eligible records
+- runtime errors are checked
+- the final deployed version maps to the intended Git commit
+
+---
+
 ## Current delivery gates
 
 1. **Gate 1 — Core lifecycle:** platform/institution administration and institution lifecycle.
@@ -119,9 +182,13 @@ The structure is intentional: product behaviour, application code, database/secu
 4. **Gate 4 — Legal & privacy:** final approved public trust/legal layer.
 5. **Gate 5 — Production domain:** custom production domain after technical acceptance.
 
-## v1.1 direction
+Gate status is evidence-based. A gate is not considered complete merely because the relevant UI exists.
 
-v1.1 is **Adoption & Institutional Value**.
+---
+
+## Current platform direction
+
+**v1.1 — Adoption & Institutional Value**
 
 Priority additions include:
 - member activation and moderated updates
@@ -133,17 +200,17 @@ Priority additions include:
 - in-app notifications and preferences
 - payment record-keeping only (subscription status, invoices, receipts)
 
-Payment processing and rich social embeds are deferred.
-
-## Development discipline
-
-Every material change follows:
-
-**Diagnose → Isolate → Fix → Test → Regression-check → Verify source → Deploy**
-
-AI-assisted development must never bypass the repository, database authorization boundary, tests, or auditability.
+Payment processing and rich social embeds are deferred unless separately approved.
 
 ---
+
+## Working principle
+
+IMBOP should be built as a controlled institutional system, not a collection of disconnected screens.
+
+When something fails, we do not patch symptoms blindly:
+
+**Diagnose → Isolate the fault → Fix the correct layer → Test → Regression-check → Verify source → Deploy → Verify**
 
 **Status:** Active build  
 **Owner:** Saintsway Equity  
