@@ -31,7 +31,7 @@ export default function Apply(){
       phone:member.phone.trim(), application_payload:{
         source:"PUBLIC_IMBOP_APPLICATION", applicant_type:"MEMBER",
         business_name:member.business, business_description:member.description,
-        sector:member.sector, location:member.location
+        sector:member.sector, location:member.location, visibility:"PUBLIC"
       }, status:"SUBMITTED"
     }).select("id").single();
     setBusy(false);
