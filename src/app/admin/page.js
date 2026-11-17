@@ -64,7 +64,7 @@ export default function AdminPage() {
 
     let notes = "";
 
-    if (action === "RETURNED" || action === "REJECTED") {
+    if (action === "RETURN" || action === "REJECT") {
       notes = window.prompt(
         `${label} application. Enter review notes/reason:`
       );
@@ -80,7 +80,7 @@ export default function AdminPage() {
     }
 
     if (
-      action === "APPROVED" &&
+      action === "APPROVE" &&
       !window.confirm(
         "Approve and onboard this institution application?"
       )
@@ -116,13 +116,7 @@ export default function AdminPage() {
       return;
     }
 
-    setMessage(
-      action === "APPROVED"
-        ? "Institution application approved and onboarded as PENDING."
-        : action === "RETURNED"
-        ? "Institution application returned for correction."
-        : "Institution application rejected and retained for audit."
-    );
+    setMessage(\n      action === "REVIEW"\n        ? "Institution application moved to PENDING REVIEW."\n        : action === "APPROVE"\n        ? "Institution application approved and onboarded as PENDING."\n        : action === "RETURN"\n        ? "Institution application returned for correction."\n        : "Institution application rejected and retained for audit."\n    );
 
     await loadData();
     setWorking(null);
@@ -383,28 +377,14 @@ export default function AdminPage() {
                   <button
                     type="button"
                     disabled={working === application.id}
-                    onClick={() =>
-                      setMessage(
-                        JSON.stringify(
-                          application.application_payload ||
-                            {},
-                          null,
-                          2
-                        )
-                      )
-                    }
-                  >
-                    REVIEW
+                    onClick={() => reviewApplication(application.id, "REVIEW")}\n                  >\n                    START REVIEW
                   </button>
 
                   <button
                     type="button"
                     disabled={working === application.id}
                     onClick={() =>
-                      reviewApplication(
-                        application.id,
-                        "APPROVED"
-                      )
+                      reviewApplication(application.id, "APPROVE")
                     }
                   >
                     APPROVE
@@ -414,10 +394,7 @@ export default function AdminPage() {
                     type="button"
                     disabled={working === application.id}
                     onClick={() =>
-                      reviewApplication(
-                        application.id,
-                        "RETURNED"
-                      )
+                      reviewApplication(application.id, "RETURN")
                     }
                   >
                     RETURN
@@ -427,10 +404,7 @@ export default function AdminPage() {
                     type="button"
                     disabled={working === application.id}
                     onClick={() =>
-                      reviewApplication(
-                        application.id,
-                        "REJECTED"
-                      )
+                      reviewApplication(application.id, "REJECT")
                     }
                   >
                     REJECT
