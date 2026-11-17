@@ -17,8 +17,8 @@ export default function Apply(){
   const [busy,setBusy]=useState(false);
 
   useEffect(()=>{
-    supabase.from("institutions").select("id,name").eq("status","active").eq("application_enabled",true).is("deleted_at",null).order("name")
-      .then(({data,error})=>{ if(error)setMsg(error.message); else setInstitutions(data||[]); });
+    supabase.rpc("public_application_institutions")
+      .then(({data,error})=>{ if(error)setMsg(error.message); else setInstitutions((data||[]).map(x=>({id:x.institution_id,name:x.institution_name}))); });
   },[]);
 
   const setMemberField=(k,v)=>setMember(x=>({...x,[k]:v}));
@@ -26,14 +26,17 @@ export default function Apply(){
 
   async function submitMember(e){
     e.preventDefault(); setBusy(true); setMsg("");
-    const {data,error}=await supabase.from("member_applications").insert({
-      institution_id:institutionId, applicant_name:member.name.trim(), email:member.email.trim(),
-      phone:member.phone.trim(), application_payload:{
+    const {data,error}=await supabase.rpc("create_public_member_application",{
+      p_institution_id:institutionId,
+      p_applicant_name:member.name.trim(),
+      p_email:member.email.trim(),
+      p_phone:member.phone.trim(),
+      p_payload:{
         source:"PUBLIC_IMBOP_APPLICATION", applicant_type:"MEMBER",
         business_name:member.business, business_description:member.description,
         sector:member.sector, location:member.location, visibility:"PUBLIC"
-      }, status:"SUBMITTED"
-    }).select("id").single();
+      }
+    });
     setBusy(false);
     if(error)return setMsg(error.message);
     setMsg("Application submitted successfully. It is now PENDING REVIEW and will not become public until the authorised institution publishes it.");
@@ -51,7 +54,18 @@ export default function Apply(){
       application_payload:{source:"PUBLIC_IMBOP_APPLICATION",applicant_type:"INSTITUTION"},
       status:"SUBMITTED"
     };
-    const {data,error}=await supabase.from("institution_applications").insert(row).select("id").single();
+    const {data,error}=await supabase.rpc("create_public_institution_application",{
+      p_institution_name:row.institution_name,
+      p_legal_name:row.legal_name,
+      p_institution_type:row.institution_type,
+      p_contact_name:row.contact_name,
+      p_contact_email:row.contact_email,
+      p_contact_phone:row.contact_phone,
+      p_membership_size:row.membership_size,
+      p_website:row.website,
+      p_location:row.location,
+      p_description:row.description
+    });
     setBusy(false);
     if(error)return setMsg(error.message);
     setMsg("Institution application submitted successfully. It is now PENDING REVIEW by Saintsway Equity.");
