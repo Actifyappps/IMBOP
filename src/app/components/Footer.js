@@ -1,0 +1,1 @@
+export default function Footer(){return <footer><div className="footer-inner"><strong>SAINTSWAY EQUITY</strong><span>The Operating Infrastructure for Trusted MSME Ownership</span><span>IMBOP · Institutional Economic Network Infrastructure</span></div></footer>}
