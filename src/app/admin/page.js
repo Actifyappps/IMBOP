@@ -1,16 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Nav from "../components/Nav";
+import Footer from "../components/Footer";
 import { supabase } from "../lib/supabase";
 
 const REVIEWABLE = ["SUBMITTED", "PENDING_REVIEW", "RETURNED"];
-
-const ACTION_LABELS = {
-  REVIEW: "START REVIEW",
-  APPROVE: "APPROVE",
-  RETURN: "RETURN",
-  REJECT: "REJECT",
-};
 
 export default function AdminPage() {
   const [applications, setApplications] = useState([]);
@@ -20,302 +15,91 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
 
   async function loadData() {
-    setLoading(true);
-    setMessage("");
-
-    const [applicationsResult, institutionsResult] = await Promise.all([
-      supabase
-        .from("institution_applications")
-        .select("*")
-        .in("status", REVIEWABLE)
-        .order("submitted_at", { ascending: true }),
-      supabase
-        .from("institutions")
-        .select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at")
-        .order("created_at", { ascending: true }),
+    setLoading(true); setMessage("");
+    const [a, i] = await Promise.all([
+      supabase.from("institution_applications").select("*").in("status", REVIEWABLE).order("submitted_at", {ascending:true}),
+      supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true})
     ]);
-
-    if (applicationsResult.error) {
-      setMessage(applicationsResult.error.message);
-    }
-
-    if (institutionsResult.error) {
-      setMessage((previous) => previous || institutionsResult.error.message);
-    }
-
-    setApplications(applicationsResult.data || []);
-    setInstitutions(institutionsResult.data || []);
-    setLoading(false);
+    if (a.error) setMessage(a.error.message);
+    if (i.error) setMessage((p)=>p || i.error.message);
+    setApplications(a.data || []); setInstitutions(i.data || []); setLoading(false);
   }
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(()=>{loadData()},[]);
 
   async function reviewApplication(id, action) {
-    const label = ACTION_LABELS[action] || action;
     let notes = "";
-
     if (action === "RETURN" || action === "REJECT") {
-      notes = window.prompt(`${label} application. Enter review notes/reason:`);
+      notes = window.prompt(action + " application. Enter review notes/reason:");
       if (notes === null) return;
       notes = notes.trim();
-      if (!notes) {
-        setMessage("Review notes/reason are required.");
-        return;
-      }
+      if (!notes) return setMessage("Review notes/reason are required.");
     }
-
-    if (
-      action === "APPROVE" &&
-      !window.confirm("Approve and onboard this institution application?")
-    ) {
-      return;
-    }
-
-    setWorking(id);
-    setMessage("");
-
-    const { data, error } = await supabase.rpc(
-      "review_institution_application",
-      {
-        p_application_id: id,
-        p_action: action,
-        p_notes: notes || null,
-      }
-    );
-
-    if (error) {
-      setMessage(error.message);
-      setWorking(null);
-      return;
-    }
-
-    if (!data?.ok) {
-      setMessage(
-        data?.message ||
-          data?.error ||
-          "Institution application action failed."
-      );
-      setWorking(null);
-      return;
-    }
-
-    setMessage(
-      action === "REVIEW"
-        ? "Institution application moved to PENDING REVIEW."
-        : action === "APPROVE"
-        ? "Institution application approved and onboarded as PENDING."
-        : action === "RETURN"
-        ? "Institution application returned for correction."
-        : "Institution application rejected and retained for audit."
-    );
-
-    await loadData();
-    setWorking(null);
-  }
-
-  function isTestInstitution(institution) {
-    return (
-      institution.slug === "imbop-gate-2-security-test" ||
-      institution.name === "IMBOP Gate 2 Security Test Institution"
-    );
-  }
-
-  function lifecycleControls(institution) {
-    const status = String(institution.status || "").toUpperCase();
-
-    if (institution.deleted_at) {
-      return (
-        <button
-          type="button"
-          disabled={working === institution.id}
-          onClick={() => manageInstitution(institution.id, "RESTORE")}
-        >
-          RESTORE
-        </button>
-      );
-    }
-
-    if (status === "PENDING") {
-      return (
-        <>
-          <button type="button" onClick={() => manageInstitution(institution.id, "ACTIVATE")}>ACTIVATE</button>
-          <button type="button" onClick={() => manageInstitution(institution.id, "PAUSE")}>PAUSE</button>
-          <button type="button" onClick={() => manageInstitution(institution.id, "SUSPEND")}>SUSPEND</button>
-          <button type="button" onClick={() => manageInstitution(institution.id, "SHUT")}>SHUT</button>
-          <button type="button" onClick={() => manageInstitution(institution.id, "DELETE")}>DELETE</button>
-        </>
-      );
-    }
-
-    return (
-      <>
-        {status !== "ACTIVE" && (
-          <button type="button" onClick={() => manageInstitution(institution.id, "ACTIVATE")}>ACTIVATE</button>
-        )}
-        <button type="button" onClick={() => manageInstitution(institution.id, "PAUSE")}>PAUSE</button>
-        <button type="button" onClick={() => manageInstitution(institution.id, "SUSPEND")}>SUSPEND</button>
-        <button type="button" onClick={() => manageInstitution(institution.id, "SHUT")}>SHUT</button>
-        <button type="button" onClick={() => manageInstitution(institution.id, "DELETE")}>DELETE</button>
-      </>
-    );
+    if (action === "APPROVE" && !window.confirm("Approve and onboard this institution application?")) return;
+    setWorking(id); setMessage("");
+    const {data,error}=await supabase.rpc("review_institution_application",{p_application_id:id,p_action:action,p_notes:notes||null});
+    if(error){setMessage(error.message);setWorking(null);return}
+    if(!data?.ok){setMessage(data?.message||data?.error||"Institution application action failed.");setWorking(null);return}
+    setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved and onboarded as PENDING.":action==="RETURN"?"Institution application returned for correction.":"Institution application rejected and retained for audit.");
+    await loadData(); setWorking(null);
   }
 
   async function manageInstitution(id, action) {
-    const reason = window.prompt(`${action} institution. Enter reason:`);
-    if (reason === null) return;
-
-    if (!reason.trim()) {
-      setMessage("A reason is required.");
-      return;
-    }
-
-    setWorking(id);
-    setMessage("");
-
-    const { data, error } = await supabase.rpc("manage_institution", {
-      p_institution_id: id,
-      p_action: action,
-      p_reason: reason.trim(),
-    });
-
-    if (error) {
-      setMessage(error.message);
-      setWorking(null);
-      return;
-    }
-
-    if (!data?.ok) {
-      setMessage(
-        data?.message ||
-          data?.error ||
-          "Institution lifecycle action failed."
-      );
-      setWorking(null);
-      return;
-    }
-
-    setMessage(`${action} completed and audited.`);
-    await loadData();
-    setWorking(null);
+    const reason=window.prompt(action+" institution. Enter reason:");
+    if(reason===null)return;
+    if(!reason.trim())return setMessage("A reason is required.");
+    setWorking(id);setMessage("");
+    const {data,error}=await supabase.rpc("manage_institution",{p_institution_id:id,p_action:action,p_reason:reason.trim()});
+    if(error){setMessage(error.message);setWorking(null);return}
+    if(!data?.ok){setMessage(data?.message||data?.error||"Institution lifecycle action failed.");setWorking(null);return}
+    setMessage(action+" completed and audited.");await loadData();setWorking(null);
   }
 
-  if (loading) {
-    return (
-      <main>
-        <p>Loading platform administration…</p>
-      </main>
-    );
+  function controls(i){
+    const s=String(i.status||"").toUpperCase();
+    if(i.deleted_at)return <button className="admin-btn admin-btn-primary" onClick={()=>manageInstitution(i.id,"RESTORE")}>RESTORE</button>;
+    return <>
+      {s!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" onClick={()=>manageInstitution(i.id,"ACTIVATE")}>ACTIVATE</button>}
+      <button className="admin-btn" onClick={()=>manageInstitution(i.id,"PAUSE")}>PAUSE</button>
+      <button className="admin-btn" onClick={()=>manageInstitution(i.id,"SUSPEND")}>SUSPEND</button>
+      <button className="admin-btn admin-btn-danger" onClick={()=>manageInstitution(i.id,"SHUT")}>SHUT</button>
+      <button className="admin-btn admin-btn-danger" onClick={()=>manageInstitution(i.id,"DELETE")}>DELETE</button>
+    </>;
   }
 
-  return (
-    <main>
-      <header>
-        <div>
-          <strong>SAINTSWAY EQUITY</strong>
-          <div>IMBOP</div>
+  if(loading)return <><Nav authenticated/><main className="wrap"><div className="card">Loading platform administration…</div></main><Footer/></>;
+
+  return <><Nav authenticated/><main className="wrap admin-page">
+    <div className="platform-label"><b>SE PLATFORM ADMINISTRATION</b><span>Controlled platform-owner administration</span></div>
+    <header className="admin-hero"><div><div className="eyebrow">CONTROLLED ADMIN</div><h1>SE Platform Administration</h1><p>Review institutional applications and manage the controlled institution lifecycle.</p></div></header>
+    {message&&<div className="notice admin-message" role="status">{message}</div>}
+
+    <section className="admin-section">
+      <div className="section-heading"><div><div className="eyebrow">ADMISSION GATE</div><h2>Institution Applications</h2></div><span className="count-badge">{applications.length} awaiting action</span></div>
+      {!applications.length?<div className="card empty-state">No institution applications awaiting action.</div>:<div className="admin-grid">{applications.map(a=><article className="admin-card" key={a.id}>
+        <div className="admin-card-head"><div><div className="eyebrow">APPLICATION</div><h3>{a.institution_name}</h3><p className="admin-contact">{a.contact_name} · {a.contact_email}</p></div><span className="status-badge">{a.status}</span></div>
+        <div className="detail-grid">
+          <div><span>Legal name</span><strong>{a.legal_name||"—"}</strong></div><div><span>Type</span><strong>{a.institution_type||"—"}</strong></div>
+          <div><span>Phone</span><strong>{a.contact_phone||"—"}</strong></div><div><span>Members</span><strong>{a.membership_size??"—"}</strong></div>
+          <div><span>Location</span><strong>{a.location||"—"}</strong></div><div><span>Website</span><strong>{a.website||"—"}</strong></div>
         </div>
-        <nav>
-          <a href="/">HOME</a>
-          <a href="/discover">DISCOVER</a>
-          <a href="/apply">APPLY / JOIN</a>
-          <a href="/workspace">WORKSPACE</a>
-        </nav>
-      </header>
+        {a.description&&<p className="admin-description">{a.description}</p>}
+        <div className="admin-actions">
+          <button className="admin-btn" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"REVIEW")}>START REVIEW</button>
+          <button className="admin-btn admin-btn-primary" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"APPROVE")}>APPROVE</button>
+          <button className="admin-btn" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"RETURN")}>RETURN</button>
+          <button className="admin-btn admin-btn-danger" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"REJECT")}>REJECT</button>
+        </div>
+      </article>)}</div>}
+    </section>
 
-      <section>
-        <p>CONTROLLED ADMIN</p>
-        <h1>SE PLATFORM ADMINISTRATION</h1>
-
-        {message && <div role="status">{message}</div>}
-
-        <section>
-          <h2>INSTITUTION APPLICATIONS</h2>
-
-          {applications.length === 0 ? (
-            <p>No institution applications awaiting action.</p>
-          ) : (
-            applications.map((application) => (
-              <article key={application.id}>
-                <h3>{application.institution_name}</h3>
-                <p>
-                  {application.contact_name} · {application.contact_email}
-                </p>
-                <p><strong>{application.status}</strong></p>
-                <p>Legal: {application.legal_name || "—"}</p>
-                <p>Type: {application.institution_type || "—"}</p>
-                <p>Phone: {application.contact_phone || "—"}</p>
-                <p>Members: {application.membership_size ?? "—"}</p>
-                <p>Location: {application.location || "—"}</p>
-                <p>Website: {application.website || "—"}</p>
-                <p>{application.description || ""}</p>
-
-                <div>
-                  <button
-                    type="button"
-                    disabled={working === application.id}
-                    onClick={() => reviewApplication(application.id, "REVIEW")}
-                  >
-                    START REVIEW
-                  </button>
-                  <button
-                    type="button"
-                    disabled={working === application.id}
-                    onClick={() => reviewApplication(application.id, "APPROVE")}
-                  >
-                    APPROVE
-                  </button>
-                  <button
-                    type="button"
-                    disabled={working === application.id}
-                    onClick={() => reviewApplication(application.id, "RETURN")}
-                  >
-                    RETURN
-                  </button>
-                  <button
-                    type="button"
-                    disabled={working === application.id}
-                    onClick={() => reviewApplication(application.id, "REJECT")}
-                  >
-                    REJECT
-                  </button>
-                </div>
-              </article>
-            ))
-          )}
-        </section>
-
-        <section>
-          <h2>INSTITUTION LIFECYCLE</h2>
-
-          {institutions.map((institution) => {
-            const testInstitution = isTestInstitution(institution);
-
-            return (
-              <article key={institution.id}>
-                <div>
-                  <h3>
-                    {institution.name}{" "}
-                    {testInstitution && <span className="status">TEST</span>}
-                  </h3>
-                  <p>
-                    {institution.deleted_at
-                      ? "DELETED"
-                      : String(institution.status || "").toUpperCase()}
-                  </p>
-                </div>
-
-                {institution.status_reason && (
-                  <p>Status note: {institution.status_reason}</p>
-                )}
-
-                <div>{lifecycleControls(institution)}</div>
-              </article>
-            );
-          })}
-        </section>
-      </section>
-    </main>
-  );
+    <section className="admin-section">
+      <div className="section-heading"><div><div className="eyebrow">CONTROL</div><h2>Institution Lifecycle</h2></div><span className="count-badge">{institutions.length} institutions</span></div>
+      <div className="admin-grid">{institutions.map(i=><article className="admin-card" key={i.id}>
+        <div className="admin-card-head"><div><div className="eyebrow">INSTITUTION</div><h3>{i.name}</h3></div><span className={"status-badge "+(i.deleted_at?"status-deleted":"")}>{i.deleted_at?"DELETED":String(i.status||"").toUpperCase()}</span></div>
+        {i.slug==="imbop-gate-2-security-test"&&<span className="test-badge">GATE 2 TEST</span>}
+        {i.status_reason&&<p className="admin-description"><strong>Status note:</strong> {i.status_reason}</p>}
+        <div className="admin-actions lifecycle-actions">{controls(i)}</div>
+      </article>)}</div>
+    </section>
+  </main><Footer/></>;
 }
