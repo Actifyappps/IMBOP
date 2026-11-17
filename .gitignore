@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+playwright-report/
+test-results/
+coverage/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
