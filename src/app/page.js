@@ -26,10 +26,10 @@ export default function Home() {
 
             <p>Then <b>APPLY / JOIN</b> yourself and</p>
 
-            <h2>EXPLORE. KNOW. DISCOVER. ENQUIRE. CONNECT.</h2>
+            <h2 className="journey-heading">EXPLORE. KNOW. DISCOVER. ENQUIRE. CONNECT.</h2>
             <p>With your co-members, their businesses &amp; opportunities.</p>
 
-            <p><b>APPLY / JOIN</b> — Institution or Institution Member.</p>
+            <p className="apply-line"><b>APPLY / JOIN</b> — Either as an Institution or Institution Member.</p>
 
             <p>
               For Members, your institution decides whether to publish.{" "}
