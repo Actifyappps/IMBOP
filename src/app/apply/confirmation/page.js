@@ -3,16 +3,16 @@ import Link from "next/link";
 import Nav from "../../components/Nav";
 import Footer from "../../components/Footer";
 
-export default function ApplicationConfirmation(){
+export default function ApplicationConfirmation(){ 
   return <><Nav/><main className="wrap">
     <div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}>
       <div className="eyebrow">APPLICATION RECEIVED</div>
       <h1>Thank You. Your Application Is In.</h1>
       <p><b>Application ≠ Publication.</b></p>
-      <p>Your Institution Member application has been received and is now <b>PENDING REVIEW</b> by the authorised institution. It will not become public until that institution reviews and publishes it.</p>
+      <p>Your Institution Member application has been received and is now <b>PENDING REVIEW</b> by your institution.</p>
       <div className="notice" style={{margin:"24px 0",textAlign:"left"}}>
         <b>What happens next?</b><br/>
-        The institution reviews the application and may publish, return, or reject it. If published, the member and their business can become discoverable through IMBOP according to the institution's visibility settings.
+        Your Institution will review and may publish, return, or reject it. If published, you and your business, offers and needs will become discoverable to your co-members through your Institution's IMBOP Page. Explore. Know. Discover. Enquire. Connect.
       </div>
       <div className="actions" style={{justifyContent:"center"}}>
         <Link className="btn" href="/discover">EXPLORE IMBOP</Link>
