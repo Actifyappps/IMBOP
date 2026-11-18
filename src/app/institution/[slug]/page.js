@@ -1,22 +1,46 @@
+"use client";
+
+import {useEffect,useState} from "react";
+import {useParams} from "next/navigation";
 import Link from "next/link";
 import Nav from "../../../components/Nav";
 import Footer from "../../../components/Footer";
 import {supabase} from "../../../lib/supabase";
 
-export const dynamic = "force-dynamic";
+export default function InstitutionSpace(){
+  const {slug}=useParams();
+  const [institution,setInstitution]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
 
-export default async function InstitutionSpace({params}){
-  const {slug}=await params;
-  const {data,error}=await supabase.rpc("search_public_institutions",{
-    p_query:slug,
-    p_min_onboards:null,
-    p_max_onboards:null,
-    p_limit:1,
-    p_offset:0
-  });
-  const institution=!error?(data||[]).find(x=>x.slug===slug):null;
+  useEffect(()=>{
+    let active=true;
+    async function load(){
+      setLoading(true);
+      setError("");
+      const {data,error}=await supabase.rpc("search_public_institutions",{
+        p_query:slug||"",
+        p_min_onboards:null,
+        p_max_onboards:null,
+        p_limit:1,
+        p_offset:0
+      });
+      if(!active)return;
+      if(error){
+        setError(error.message||"Unable to load this institution.");
+        setInstitution(null);
+      }else{
+        setInstitution((data||[]).find(x=>x.slug===slug)||null);
+      }
+      setLoading(false);
+    }
+    if(slug)load();
+    return()=>{active=false};
+  },[slug]);
 
-  if(!institution) return <><Nav/><main className="wrap"><div className="card"><div className="eyebrow">IMBOP SPACE</div><h1>Institution Not Found</h1><p>This institution is not currently available as a public IMBOP Space.</p><Link className="btn" href="/discover">BACK TO DISCOVER</Link></div></main><Footer/></>;
+  if(loading)return <><Nav/><main className="wrap"><div className="card"><div className="eyebrow">IMBOP SPACE</div><h1>Loading institution…</h1><p>Loading the institution's public IMBOP space.</p></div></main><Footer/></>;
+
+  if(error||!institution)return <><Nav/><main className="wrap"><div className="card"><div className="eyebrow">IMBOP SPACE</div><h1>Institution Not Found</h1><p>{error||"This institution is not currently available as a public IMBOP Space."}</p><Link className="btn" href="/discover">BACK TO DISCOVER</Link></div></main><Footer/></>;
 
   return <><Nav/><main className="wrap">
     <div className="eyebrow">IMBOP SPACE</div>
