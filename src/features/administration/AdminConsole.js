@@ -22,6 +22,7 @@ export default function AdminConsole({section="dashboard"}) {
   const [drawer, setDrawer] = useState(null);
   const [drawerText, setDrawerText] = useState("");
   const [drawerForm, setDrawerForm] = useState({email:"",first:"",last:""});
+  const [pricingDraft, setPricingDraft] = useState(null);
 
   async function loadData() {
     setLoading(true); setMessage("");
@@ -43,31 +44,34 @@ export default function AdminConsole({section="dashboard"}) {
     setCommRecipients(cr.data || []); setCommTemplates(ct.data || []); setLoading(false);
   }
   useEffect(()=>{loadData()},[]);
+  useEffect(()=>{
+    if(!drawer) return;
+    const onKey=(e)=>{ if(e.key==="Escape" && !working) setDrawer(null); };
+    window.addEventListener("keydown",onKey);
+    return ()=>window.removeEventListener("keydown",onKey);
+  },[drawer,working]);
 
   function readiness(id) {
     return onboarding.find(x=>x.id===id) || {};
   }
 
   async function reviewApplication(id, action, suppliedNotes) {
-    if (drawer) setDrawer(null);
     let notes = suppliedNotes || "";
     if ((action === "RETURN" || action === "REJECT") && !notes.trim()) return setMessage("Review notes/reason are required.");
-    if (action === "APPROVE" && !window.confirm("Approve and onboard this institution application?")) return;
     setWorking(id); setMessage("");
     const {data,error}=await supabase.rpc("review_institution_application",{p_application_id:id,p_action:action==="RETURN"?"RETURNED":action==="REJECT"?"REJECTED":action,p_notes:notes||null});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.message||data?.error||"Institution application action failed.");setWorking(null);return}
     setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved and onboarded as PENDING.":"Institution application decision recorded.");
-    await loadData(); setWorking(null);
+    setDrawer(null); await loadData(); setWorking(null);
   }
 
   async function configureInstitution(id) {
-    if (!window.confirm("Complete the standard IMBOP institution configuration for this institution?")) return;
     setWorking(id); setMessage("");
     const {error}=await supabase.rpc("platform_configure_institution",{p_institution_id:id});
     if(error){setMessage(error.message);setWorking(null);return}
     setMessage("Institution configuration completed and audited.");
-    await loadData(); setWorking(null);
+    setDrawer(null); await loadData(); setWorking(null);
   }
 
   async function assignAdmin(id, form) {
@@ -75,7 +79,6 @@ export default function AdminConsole({section="dashboard"}) {
     const email=form?.email ?? d.email ?? "";
     const first=form?.first ?? d.first ?? "";
     const last=form?.last ?? d.last ?? "";
-    setDrawer(null);
     if(!email.trim()||!email.includes("@"))return setMessage("A valid administrator email is required.");
     setWorking(id); setMessage("");
     const {data:{session}}=await supabase.auth.getSession();
@@ -86,18 +89,17 @@ export default function AdminConsole({section="dashboard"}) {
     const data=await r.json().catch(()=>({}));
     if(!r.ok||!data?.ok){setMessage(data?.error||"Administrator assignment failed.");setWorking(null);return}
     setMessage(data.invited?"Administrator invitation sent and active administrator assignment created.":"Existing user assigned as institution administrator.");
-    await loadData(); setWorking(null);
+    setDrawer(null); await loadData(); setWorking(null);
   }
 
   async function manageInstitution(id, action, suppliedReason) {
     const reason=suppliedReason ?? "";
-    setDrawer(null);
     if(!reason.trim())return setMessage("A reason is required.");
     setWorking(id);setMessage("");
     const {data,error}=await supabase.rpc("manage_institution",{p_institution_id:id,p_action:action,p_reason:reason.trim()});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.message||data?.error||"Institution lifecycle action failed.");setWorking(null);return}
-    setMessage(action+" completed and audited.");await loadData();setWorking(null);
+    setMessage(action+" completed and audited.");setDrawer(null);await loadData();setWorking(null);
   }
 
   async function dispatchOneQueuedEmail() {
@@ -154,6 +156,7 @@ export default function AdminConsole({section="dashboard"}) {
     setDrawer({type,...payload});
     setDrawerText(payload.text || "");
     if(type==="assign-admin") setDrawerForm({email:"",first:"",last:""});
+    if(type==="pricing") setPricingDraft(payload.plan);
   }
 
   if(loading)return <><Nav authenticated/><main className="wrap"><div className="card">Loading platform administration…</div></main><Footer/></>;
@@ -213,7 +216,7 @@ export default function AdminConsole({section="dashboard"}) {
     <section className="admin-section">
       <div className="section-heading"><div><div className="eyebrow">ONBOARDING & READINESS</div><h2>Institution Readiness</h2></div><span className="count-badge">{onboarding.filter(x=>!x.ready_to_activate && !x.status?.toLowerCase?.().includes("deleted")).length} need action</span></div>
       <div className="admin-grid">{institutions.filter(i=>!i.deleted_at).map(i=>{const r=readiness(i.id);return <article className="admin-card" key={i.id}>
-        <div className="admin-card-head"><div><div className="eyebrow">ONBOARDING</div><h3>{i.name}</h3></div><span className={"status-badge "+(r.ready_to_activate?"":"status-deleted")}>{r.ready_to_activate?"READY":"NOT READY"}</span></div>
+        <div className="admin-card-head"><div><div className="eyebrow">ONBOARDING</div><h3>{i.name}</h3></div><span className={"status-badge "+(r.ready_to_activate?"":"status-pending")}>{r.ready_to_activate?"READY":"NOT READY"}</span></div>
         <div className="detail-grid">
           <div><span>Configuration</span><strong>{r.configured?"COMPLETE":"REQUIRED"}</strong></div>
           <div><span>Active administrators</span><strong>{r.active_admin_count??0}</strong></div>
@@ -241,23 +244,8 @@ export default function AdminConsole({section="dashboard"}) {
           <div><span>Transition minimum</span><strong>{plan.transition_minimum_kes==null?"—":"KES "+Number(plan.transition_minimum_kes).toLocaleString("en-KE")}</strong></div>
           <div><span>Status</span><strong>{plan.active?"ACTIVE":"HIDDEN"}</strong></div>
         </div>
-        <details className="pricing-edit"><summary>EDIT PLAN FIGURES</summary>
-          <div className="grid">
-            <div><label className="label">PLAN NAME</label><input className="input" defaultValue={plan.plan_name} id={"pn-"+plan.id}/></div>
-            <div><label className="label">MONTHLY FEE (KES)</label><input className="input" type="number" min="0" defaultValue={plan.monthly_fee_kes??""} id={"pf-"+plan.id}/></div>
-          </div>
-          <div className="grid">
-            <div><label className="label">TRANSITION MINIMUM (KES)</label><input className="input" type="number" min="0" defaultValue={plan.transition_minimum_kes??""} id={"pt-"+plan.id}/></div>
-            <div><label className="label">PRICING MODE</label><select className="input" defaultValue={plan.pricing_mode} id={"pm-"+plan.id}><option>FREE</option><option>STANDARD</option><option>NEGOTIATED</option></select></div>
-          </div>
-          <label className="label">DESCRIPTION</label><textarea className="textarea" defaultValue={plan.description||""} id={"pd-"+plan.id}/>
-          <button className="admin-btn admin-btn-primary" disabled={working===plan.id} onClick={async()=>{
-            setWorking(plan.id);setMessage("");
-            const v=await supabase.rpc("upsert_platform_pricing_plan",{p_plan_code:plan.plan_code,p_plan_name:document.getElementById("pn-"+plan.id).value,p_min_onboards:plan.min_onboards,p_max_onboards:plan.max_onboards,p_monthly_fee_kes:document.getElementById("pf-"+plan.id).value===""?null:Number(document.getElementById("pf-"+plan.id).value),p_transition_minimum_kes:document.getElementById("pt-"+plan.id).value===""?null:Number(document.getElementById("pt-"+plan.id).value),p_pricing_mode:document.getElementById("pm-"+plan.id).value,p_description:document.getElementById("pd-"+plan.id).value,p_active:plan.active});
-            if(v.error||!v.data?.ok)setMessage(v.error?.message||v.data?.error||"Pricing update failed.");else{setMessage("Pricing plan updated.");await loadData();}
-            setWorking(null);
-          }}>SAVE PRICING PLAN</button>
-        </details>
+        <button className="admin-btn" onClick={()=>openDrawer("pricing",{id:plan.id,title:"Edit pricing plan",plan})}>EDIT PLAN FIGURES</button>
+
       </article>)}</div>
     </section>
     )}
@@ -307,10 +295,10 @@ export default function AdminConsole({section="dashboard"}) {
     </section>
     )}
   </main>    {drawer && <div className="admin-drawer-backdrop" onClick={()=>setDrawer(null)}>
-      <aside className="admin-drawer" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}>
+      <aside className="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-drawer-title" onClick={e=>e.stopPropagation()}>
         <button className="admin-drawer-close" onClick={()=>setDrawer(null)} aria-label="Close">×</button>
         <div className="eyebrow">CONTROLLED ACTION</div>
-        <h2>{drawer.title}</h2>
+        <h2 id="admin-drawer-title">{drawer.title}</h2>
         {drawer.type==="review" && <>{drawer.action==="APPROVE" ? <p>Approve this institution application and move the institution into pending onboarding.</p> : <><label className="label">REVIEW NOTES / REASON</label><textarea className="textarea" rows="6" value={drawerText} onChange={e=>setDrawerText(e.target.value)} /></>}</>}
         {drawer.type==="confirm-config" && <p>Complete the standard IMBOP configuration for this institution. The action will be audited.</p>}
         {drawer.type==="assign-admin" && <div className="grid">
@@ -319,13 +307,29 @@ export default function AdminConsole({section="dashboard"}) {
           <div><label className="label">LAST NAME</label><input className="input" value={drawerForm.last} onChange={e=>setDrawerForm(f=>({...f,last:e.target.value}))}/></div>
         </div>}
         {drawer.type==="lifecycle" && <><p>{drawer.action} is a controlled lifecycle action and will be recorded in the audit trail.</p><label className="label">REASON</label><textarea className="textarea" rows="5" value={drawerText} onChange={e=>setDrawerText(e.target.value)} /></>}
+        {drawer.type==="pricing" && pricingDraft && <div className="grid">
+          <div><label className="label">PLAN NAME</label><input className="input" value={pricingDraft.plan_name||""} onChange={e=>setPricingDraft(d=>({...d,plan_name:e.target.value}))}/></div>
+          <div><label className="label">MONTHLY FEE (KES)</label><input className="input" type="number" min="0" value={pricingDraft.monthly_fee_kes??""} onChange={e=>setPricingDraft(d=>({...d,monthly_fee_kes:e.target.value===""?null:Number(e.target.value)}))}/></div>
+          <div><label className="label">TRANSITION MINIMUM (KES)</label><input className="input" type="number" min="0" value={pricingDraft.transition_minimum_kes??""} onChange={e=>setPricingDraft(d=>({...d,transition_minimum_kes:e.target.value===""?null:Number(e.target.value)}))}/></div>
+          <div><label className="label">PRICING MODE</label><select className="input" value={pricingDraft.pricing_mode} onChange={e=>setPricingDraft(d=>({...d,pricing_mode:e.target.value}))}><option>FREE</option><option>STANDARD</option><option>NEGOTIATED</option></select></div>
+          <div style={{gridColumn:"1 / -1"}}><label className="label">DESCRIPTION</label><textarea className="textarea" value={pricingDraft.description||""} onChange={e=>setPricingDraft(d=>({...d,description:e.target.value}))}/></div>
+        </div>}
+
         <div className="admin-actions">
           <button className="admin-btn" onClick={()=>setDrawer(null)}>CANCEL</button>
-          <button className="admin-btn admin-btn-primary" onClick={()=>{
+          <button className="admin-btn admin-btn-primary" disabled={working===drawer.id} onClick={()=>{
             if(drawer.type==="review") reviewApplication(drawer.id,drawer.action,drawerText);
-            else if(drawer.type==="confirm-config") configureInstitution(drawer.id).then(()=>setDrawer(null));
+            else if(drawer.type==="confirm-config") configureInstitution(drawer.id);
             else if(drawer.type==="assign-admin") assignAdmin(drawer.id,drawerForm);
             else if(drawer.type==="lifecycle") manageInstitution(drawer.id,drawer.action,drawerText);
+            else if(drawer.type==="pricing") (async()=>{
+              const p=pricingDraft;
+              if(!p?.plan_name?.trim()) return setMessage("Plan name is required.");
+              setWorking(p.id); setMessage("");
+              const v=await supabase.rpc("upsert_platform_pricing_plan",{p_plan_code:p.plan_code,p_plan_name:p.plan_name.trim(),p_min_onboards:p.min_onboards,p_max_onboards:p.max_onboards,p_monthly_fee_kes:p.monthly_fee_kes,p_transition_minimum_kes:p.transition_minimum_kes,p_pricing_mode:p.pricing_mode,p_description:p.description||"",p_active:p.active});
+              if(v.error||!v.data?.ok){setMessage(v.error?.message||v.data?.error||"Pricing update failed.");setWorking(null);return}
+              setMessage("Pricing plan updated.");setDrawer(null);setPricingDraft(null);await loadData();setWorking(null);
+            })();
           }}>CONFIRM</button>
         </div>
       </aside>
