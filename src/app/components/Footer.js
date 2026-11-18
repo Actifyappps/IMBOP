@@ -5,7 +5,8 @@ export default function Footer(){
     <div className="footer-inner">
       <div className="footer-brand">
         <strong>SAINTSWAY EQUITY</strong>
-        <span>IMBOP</span>
+        <span aria-hidden="true">|</span>
+        <strong>IMBOP</strong>
       </div>
       <nav className="footer-links" aria-label="Footer">
         <Link href="/contact">CONTACT</Link>
