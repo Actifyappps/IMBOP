@@ -19,6 +19,9 @@ export default function AdminConsole({section="dashboard"}) {
   const [commRecipients, setCommRecipients] = useState([]);
   const [commTemplates, setCommTemplates] = useState([]);
   const [commDraft, setCommDraft] = useState({recipient:"",template:"",subject:"",body:""});
+  const [drawer, setDrawer] = useState(null);
+  const [drawerText, setDrawerText] = useState("");
+  const [drawerForm, setDrawerForm] = useState({email:"",first:"",last:""});
 
   async function loadData() {
     setLoading(true); setMessage("");
@@ -45,14 +48,10 @@ export default function AdminConsole({section="dashboard"}) {
     return onboarding.find(x=>x.id===id) || {};
   }
 
-  async function reviewApplication(id, action) {
-    let notes = "";
-    if (action === "RETURN" || action === "REJECT") {
-      notes = window.prompt(action + " application. Enter review notes/reason:");
-      if (notes === null) return;
-      notes = notes.trim();
-      if (!notes) return setMessage("Review notes/reason are required.");
-    }
+  async function reviewApplication(id, action, suppliedNotes) {
+    if (drawer) setDrawer(null);
+    let notes = suppliedNotes || "";
+    if ((action === "RETURN" || action === "REJECT") && !notes.trim()) return setMessage("Review notes/reason are required.");
     if (action === "APPROVE" && !window.confirm("Approve and onboard this institution application?")) return;
     setWorking(id); setMessage("");
     const {data,error}=await supabase.rpc("review_institution_application",{p_application_id:id,p_action:action==="RETURN"?"RETURNED":action==="REJECT"?"REJECTED":action,p_notes:notes||null});
@@ -71,14 +70,12 @@ export default function AdminConsole({section="dashboard"}) {
     await loadData(); setWorking(null);
   }
 
-  async function assignAdmin(id) {
+  async function assignAdmin(id, form) {
     const d=adminDrafts[id]||{};
-    const email=window.prompt("Institution administrator email:",d.email||"");
-    if(email===null)return;
-    const first=window.prompt("Administrator first name (optional):",d.first||"");
-    if(first===null)return;
-    const last=window.prompt("Administrator last name (optional):",d.last||"");
-    if(last===null)return;
+    const email=form?.email ?? d.email ?? "";
+    const first=form?.first ?? d.first ?? "";
+    const last=form?.last ?? d.last ?? "";
+    setDrawer(null);
     if(!email.trim()||!email.includes("@"))return setMessage("A valid administrator email is required.");
     setWorking(id); setMessage("");
     const {data:{session}}=await supabase.auth.getSession();
@@ -92,9 +89,9 @@ export default function AdminConsole({section="dashboard"}) {
     await loadData(); setWorking(null);
   }
 
-  async function manageInstitution(id, action) {
-    const reason=window.prompt(action+" institution. Enter reason:");
-    if(reason===null)return;
+  async function manageInstitution(id, action, suppliedReason) {
+    const reason=suppliedReason ?? "";
+    setDrawer(null);
     if(!reason.trim())return setMessage("A reason is required.");
     setWorking(id);setMessage("");
     const {data,error}=await supabase.rpc("manage_institution",{p_institution_id:id,p_action:action,p_reason:reason.trim()});
@@ -142,14 +139,21 @@ export default function AdminConsole({section="dashboard"}) {
 
   function controls(i){
     const s=String(i.status||"").toUpperCase();
-    if(i.deleted_at)return <button className="admin-btn admin-btn-primary" onClick={()=>manageInstitution(i.id,"RESTORE")}>RESTORE</button>;
+    if(i.deleted_at)return <button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"RESTORE",title:"Restore institution"})>RESTORE</button>;
     return <>
-      {s!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" onClick={()=>manageInstitution(i.id,"ACTIVATE")}>ACTIVATE</button>}
-      <button className="admin-btn" onClick={()=>manageInstitution(i.id,"PAUSE")}>PAUSE</button>
-      <button className="admin-btn" onClick={()=>manageInstitution(i.id,"SUSPEND")}>SUSPEND</button>
-      <button className="admin-btn admin-btn-danger" onClick={()=>manageInstitution(i.id,"SHUT")}>SHUT</button>
-      <button className="admin-btn admin-btn-danger" onClick={()=>manageInstitution(i.id,"DELETE")}>DELETE</button>
+      {s!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"ACTIVATE",title:"Activate institution"})>ACTIVATE</button>}
+      <button className="admin-btn" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"PAUSE",title:"Pause institution"})>PAUSE</button>
+      <button className="admin-btn" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"SUSPEND",title:"Suspend institution"})>SUSPEND</button>
+      <button className="admin-btn admin-btn-danger" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"SHUT",title:"Shut institution"})>SHUT</button>
+      <button className="admin-btn admin-btn-danger" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"DELETE",title:"Delete institution"})>DELETE</button>
     </>;
+  }
+
+  
+  function openDrawer(type, payload={}) {
+    setDrawer({type,...payload});
+    setDrawerText(payload.text || "");
+    if(type==="assign-admin") setDrawerForm({email:"",first:"",last:""});
   }
 
   if(loading)return <><Nav authenticated/><main className="wrap"><div className="card">Loading platform administration…</div></main><Footer/></>;
@@ -196,10 +200,10 @@ export default function AdminConsole({section="dashboard"}) {
         </div>
         {a.description&&<p className="admin-description">{a.description}</p>}
         <div className="admin-actions">
-          <button className="admin-btn" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"REVIEW")}>START REVIEW</button>
-          <button className="admin-btn admin-btn-primary" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"APPROVE")}>APPROVE</button>
-          <button className="admin-btn" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"RETURN")}>RETURN</button>
-          <button className="admin-btn admin-btn-danger" disabled={working===a.id} onClick={()=>reviewApplication(a.id,"REJECT")}>REJECT</button>
+          <button className="admin-btn" disabled={working===a.id} onClick={()=>openDrawer("review",{id:a.id,action:"REVIEW",title:"Start application review"})}>START REVIEW</button>
+          <button className="admin-btn admin-btn-primary" disabled={working===a.id} onClick={()=>openDrawer("review",{id:a.id,action:"APPROVE",title:"Approve institution application"})}>APPROVE</button>
+          <button className="admin-btn" disabled={working===a.id} onClick={()=>openDrawer("review",{id:a.id,action:"RETURN",title:"Return institution application"})}>RETURN</button>
+          <button className="admin-btn admin-btn-danger" disabled={working===a.id} onClick={()=>openDrawer("review",{id:a.id,action:"REJECT",title:"Reject institution application"})}>REJECT</button>
         </div>
       </article>)}</div>}
     </section>
@@ -217,8 +221,8 @@ export default function AdminConsole({section="dashboard"}) {
           <div><span>Admin contact</span><strong>{r.admin_emails?.length?r.admin_emails.join(", "):"None assigned"}</strong></div>
         </div>
         <div className="admin-actions">
-          {!r.configured&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>configureInstitution(i.id)}>COMPLETE CONFIGURATION</button>}
-          {(r.active_admin_count??0)<1&&<button className="admin-btn" disabled={working===i.id} onClick={()=>assignAdmin(i.id)}>ASSIGN / INVITE ADMIN</button>}
+          {!r.configured&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>openDrawer("confirm-config",{id:i.id,title:"Complete institution configuration"})}>COMPLETE CONFIGURATION</button>}
+          {(r.active_admin_count??0)<1&&<button className="admin-btn" disabled={working===i.id} onClick={()=>openDrawer("assign-admin",{id:i.id,title:"Assign / invite institution administrator"})>ASSIGN / INVITE ADMIN</button>}
           {r.ready_to_activate&&String(i.status).toUpperCase()!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>manageInstitution(i.id,"ACTIVATE")}>ACTIVATE</button>}
         </div>
       </article>})}</div>
@@ -302,5 +306,29 @@ export default function AdminConsole({section="dashboard"}) {
       </article>)}</div>
     </section>
     )}
-  </main><Footer/></>;
+  </main>    {drawer && <div className="admin-drawer-backdrop" onClick={()=>setDrawer(null)}>
+      <aside className="admin-drawer" role="dialog" aria-modal="true" onClick={e=>e.stopPropagation()}>
+        <button className="admin-drawer-close" onClick={()=>setDrawer(null)} aria-label="Close">×</button>
+        <div className="eyebrow">CONTROLLED ACTION</div>
+        <h2>{drawer.title}</h2>
+        {drawer.type==="review" && <>{drawer.action==="APPROVE" ? <p>Approve this institution application and move the institution into pending onboarding.</p> : <><label className="label">REVIEW NOTES / REASON</label><textarea className="textarea" rows="6" value={drawerText} onChange={e=>setDrawerText(e.target.value)} /></>}</>}
+        {drawer.type==="confirm-config" && <p>Complete the standard IMBOP configuration for this institution. The action will be audited.</p>}
+        {drawer.type==="assign-admin" && <div className="grid">
+          <div><label className="label">EMAIL</label><input className="input" value={drawerForm.email} onChange={e=>setDrawerForm(f=>({...f,email:e.target.value}))}/></div>
+          <div><label className="label">FIRST NAME</label><input className="input" value={drawerForm.first} onChange={e=>setDrawerForm(f=>({...f,first:e.target.value}))}/></div>
+          <div><label className="label">LAST NAME</label><input className="input" value={drawerForm.last} onChange={e=>setDrawerForm(f=>({...f,last:e.target.value}))}/></div>
+        </div>}
+        {drawer.type==="lifecycle" && <><p>{drawer.action} is a controlled lifecycle action and will be recorded in the audit trail.</p><label className="label">REASON</label><textarea className="textarea" rows="5" value={drawerText} onChange={e=>setDrawerText(e.target.value)} /></>}
+        <div className="admin-actions">
+          <button className="admin-btn" onClick={()=>setDrawer(null)}>CANCEL</button>
+          <button className="admin-btn admin-btn-primary" onClick={()=>{
+            if(drawer.type==="review") reviewApplication(drawer.id,drawer.action,drawerText);
+            else if(drawer.type==="confirm-config") configureInstitution(drawer.id).then(()=>setDrawer(null));
+            else if(drawer.type==="assign-admin") assignAdmin(drawer.id,drawerForm);
+            else if(drawer.type==="lifecycle") manageInstitution(drawer.id,drawer.action,drawerText);
+          }}>CONFIRM</button>
+        </div>
+      </aside>
+    </div>}
+<Footer/></>;
 }
