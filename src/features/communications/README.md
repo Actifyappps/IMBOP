@@ -134,3 +134,17 @@ Those remain owned by their respective domains. Communications observes approved
 Recipient eligibility and authorization must be derived from authenticated identity, institutional relationship and database policy. A browser-supplied recipient or institution identifier is never sufficient authority.
 
 Sensitive communication data must not be exposed through public discovery APIs.
+
+
+## Email delivery status
+
+Email is now a real queued delivery channel, but not yet an externally delivered channel. Approved lifecycle events can create EMAIL / QUEUED delivery records with recipient, subject, body, retry count and failure state. The platform must never mark an email as delivered until an approved provider confirms delivery.
+
+Current vertical slice:
+- institution application review -> recorded email queue event
+- provider-neutral queue state: QUEUED, DELIVERED, FAILED
+- retry counter and failure reason retained
+- platform-admin queue read surface
+- no provider credential or fake delivery is installed
+
+Next delivery step: connect an approved email provider through a server-side Edge Function, then implement claim -> send -> delivered/failed -> retry with idempotency.
