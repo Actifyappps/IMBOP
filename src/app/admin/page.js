@@ -15,18 +15,21 @@ export default function AdminPage() {
   const [working, setWorking] = useState(null);
   const [message, setMessage] = useState("");
   const [adminDrafts, setAdminDrafts] = useState({});
+  const [pricingPlans, setPricingPlans] = useState([]);
 
   async function loadData() {
     setLoading(true); setMessage("");
-    const [a, i, o] = await Promise.all([
+    const [a, i, o, p] = await Promise.all([
       supabase.from("institution_applications").select("*").in("status", REVIEWABLE).order("submitted_at", {ascending:true}),
       supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true}),
-      supabase.rpc("platform_institution_onboarding_overview")
+      supabase.rpc("platform_institution_onboarding_overview"),
+      supabase.rpc("get_platform_pricing_plans")
     ]);
     if (a.error) setMessage(a.error.message);
     if (i.error) setMessage((p)=>p || i.error.message);
     if (o.error) setMessage((p)=>p || o.error.message);
-    setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setLoading(false);
+    if (p.error) setMessage((m)=>m || p.error.message);
+    setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setPricingPlans(p.data || []); setLoading(false);
   }
   useEffect(()=>{loadData()},[]);
 
@@ -146,6 +149,37 @@ export default function AdminPage() {
           {r.ready_to_activate&&String(i.status).toUpperCase()!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>manageInstitution(i.id,"ACTIVATE")}>ACTIVATE</button>}
         </div>
       </article>})}</div>
+    </section>
+
+    <section className="admin-section">
+      <div className="section-heading"><div><div className="eyebrow">COMMERCIAL CONTROL</div><h2>IMBOP Pricing &amp; Plans</h2></div><span className="count-badge">{pricingPlans.length} plans</span></div>
+      <div className="card pricing-admin-note"><b>SE IMBOP is the pricing authority.</b> The first 50 IMBOP Onboards are free. Beyond 50, the Institution moves to the applicable numbers-based plan. The first transition month may use the discounted minimum configured below. Individual Institution Members are not billed.</div>
+      <div className="pricing-admin-grid">{pricingPlans.map(plan=><article className="admin-card pricing-admin-card" key={plan.id}>
+        <div className="admin-card-head"><div><div className="eyebrow">{plan.plan_code}</div><h3>{plan.plan_name}</h3></div><span className="status-badge">{plan.pricing_mode}</span></div>
+        <div className="detail-grid">
+          <div><span>IMBOP Onboards</span><strong>{plan.min_onboards.toLocaleString("en-KE")} – {plan.max_onboards==null?"50,001+":plan.max_onboards.toLocaleString("en-KE")}</strong></div>
+          <div><span>Standard monthly fee</span><strong>{plan.monthly_fee_kes==null?"NEGOTIATED":"KES "+Number(plan.monthly_fee_kes).toLocaleString("en-KE")}</strong></div>
+          <div><span>Transition minimum</span><strong>{plan.transition_minimum_kes==null?"—":"KES "+Number(plan.transition_minimum_kes).toLocaleString("en-KE")}</strong></div>
+          <div><span>Status</span><strong>{plan.active?"ACTIVE":"HIDDEN"}</strong></div>
+        </div>
+        <details className="pricing-edit"><summary>EDIT PLAN FIGURES</summary>
+          <div className="grid">
+            <div><label className="label">PLAN NAME</label><input className="input" defaultValue={plan.plan_name} id={"pn-"+plan.id}/></div>
+            <div><label className="label">MONTHLY FEE (KES)</label><input className="input" type="number" min="0" defaultValue={plan.monthly_fee_kes??""} id={"pf-"+plan.id}/></div>
+          </div>
+          <div className="grid">
+            <div><label className="label">TRANSITION MINIMUM (KES)</label><input className="input" type="number" min="0" defaultValue={plan.transition_minimum_kes??""} id={"pt-"+plan.id}/></div>
+            <div><label className="label">PRICING MODE</label><select className="input" defaultValue={plan.pricing_mode} id={"pm-"+plan.id}><option>FREE</option><option>STANDARD</option><option>NEGOTIATED</option></select></div>
+          </div>
+          <label className="label">DESCRIPTION</label><textarea className="textarea" defaultValue={plan.description||""} id={"pd-"+plan.id}/>
+          <button className="admin-btn admin-btn-primary" disabled={working===plan.id} onClick={async()=>{
+            setWorking(plan.id);setMessage("");
+            const v=await supabase.rpc("upsert_platform_pricing_plan",{p_plan_code:plan.plan_code,p_plan_name:document.getElementById("pn-"+plan.id).value,p_min_onboards:plan.min_onboards,p_max_onboards:plan.max_onboards,p_monthly_fee_kes:document.getElementById("pf-"+plan.id).value===""?null:Number(document.getElementById("pf-"+plan.id).value),p_transition_minimum_kes:document.getElementById("pt-"+plan.id).value===""?null:Number(document.getElementById("pt-"+plan.id).value),p_pricing_mode:document.getElementById("pm-"+plan.id).value,p_description:document.getElementById("pd-"+plan.id).value,p_active:plan.active});
+            if(v.error||!v.data?.ok)setMessage(v.error?.message||v.data?.error||"Pricing update failed.");else{setMessage("Pricing plan updated.");await loadData();}
+            setWorking(null);
+          }}>SAVE PRICING PLAN</button>
+        </details>
+      </article>)}</div>
     </section>
 
     <section className="admin-section">
