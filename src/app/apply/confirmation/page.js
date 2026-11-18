@@ -8,7 +8,6 @@ export default function ApplicationConfirmation(){
     <div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}>
       <div className="eyebrow">APPLICATION RECEIVED</div>
       <h1>Thank You. Your Application Is In.</h1>
-      <p><b>Application ≠ Publication.</b></p>
       <p>Your Institution Member application has been received and is now <b>PENDING REVIEW</b> by your institution.</p>
       <div className="notice" style={{margin:"24px 0",textAlign:"left"}}>
         <b>What happens next?</b><br/>
@@ -18,6 +17,7 @@ export default function ApplicationConfirmation(){
         <Link className="btn" href="/discover">EXPLORE IMBOP</Link>
         <Link className="btn alt" href="/">RETURN HOME</Link>
       </div>
+      <p><b>Application ≠ Publication.</b></p>
     </div>
 
     <div className="card" style={{maxWidth:820,margin:"24px auto 0",textAlign:"center"}}>
