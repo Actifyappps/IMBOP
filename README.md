@@ -138,6 +138,7 @@ In particular:
 │   ├── components/
 │   ├── lib/
 │   └── features/
+│       └── communications/
 ├── supabase/
 │   ├── migrations/
 │   ├── functions/
@@ -189,6 +190,8 @@ Gate status is evidence-based. A gate is not considered complete merely because 
 ## Current platform direction
 
 **v1.1 — Adoption & Institutional Value**
+
+The platform now has an explicit **Communications Infrastructure** domain boundary under `src/features/communications/`. Its canonical model is **EVENT → COMMUNICATION → DELIVERY → AUDIT**, beginning with in-app and email channels. Communications does not own application, authorization, publication or pricing decisions; it communicates approved events from those domains.
 
 Priority additions include:
 - member activation and moderated updates
