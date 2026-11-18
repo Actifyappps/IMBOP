@@ -1,9 +1,9 @@
 "use client";
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import Nav from "./components/Nav";
-import Footer from "./components/Footer";
-import {supabase} from "./lib/supabase";
+import Nav from "../components/Nav";
+import Footer from "../components/Footer";
+import {supabase} from "../lib/supabase";
 export default function Home(){
  const[stats,setStats]=useState(null);
  useEffect(()=>{supabase.rpc("get_imbop_public_stats").then(({data})=>setStats(data?.[0]||null))},[]);

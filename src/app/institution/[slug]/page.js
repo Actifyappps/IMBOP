@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Nav from "../../components/Nav";
-import Footer from "../../components/Footer";
-import {supabase} from "../../lib/supabase";
+import Nav from "../../../components/Nav";
+import Footer from "../../../components/Footer";
+import {supabase} from "../../../lib/supabase";
 
 export default async function InstitutionSpace({params}){
   const {data}=await supabase.rpc("search_public_institutions",{p_query:null,p_min_onboards:null,p_max_onboards:null,p_limit:100,p_offset:0});
