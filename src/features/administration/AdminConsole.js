@@ -84,7 +84,7 @@ export default function AdminConsole({section="dashboard"}) {
     const {data:{session}}=await supabase.auth.getSession();
     if(!session?.access_token){setMessage("Your authenticated platform session is required.");setWorking(null);return}
     const base=process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const anon=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const r=await fetch(base+"/functions/v1/platform-institution-admin-invite",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,apikey:anon,"Content-Type":"application/json"},body:JSON.stringify({institution_id:id,email:email.trim(),first_name:first.trim(),last_name:last.trim()})});
     const data=await r.json().catch(()=>({}));
     if(!r.ok||!data?.ok){setMessage(data?.error||"Administrator assignment failed.");setWorking(null);return}
@@ -216,7 +216,7 @@ export default function AdminConsole({section="dashboard"}) {
     <section className="admin-section">
       <div className="section-heading"><div><div className="eyebrow">ONBOARDING & READINESS</div><h2>Institution Readiness</h2></div><span className="count-badge">{onboarding.filter(x=>!x.ready_to_activate && !x.status?.toLowerCase?.().includes("deleted")).length} need action</span></div>
       <div className="admin-grid">{institutions.filter(i=>!i.deleted_at).map(i=>{const r=readiness(i.id);return <article className="admin-card" key={i.id}>
-        <div className="admin-card-head"><div><div className="eyebrow">ONBOARDING</div><h3>{i.name}</h3></div><span className={"status-badge "+(r.ready_to_activate?"":"status-pending")}>{r.ready_to_activate?"READY":"NOT READY"}</span></div>
+        <div className="admin-card-head"><div><div className="eyebrow">ONBOARDING</div><h3>{i.name}</h3></div><span className="status-badge">{r.ready_to_activate?"READY":"NOT READY"}</span></div>
         <div className="detail-grid">
           <div><span>Configuration</span><strong>{r.configured?"COMPLETE":"REQUIRED"}</strong></div>
           <div><span>Active administrators</span><strong>{r.active_admin_count??0}</strong></div>
