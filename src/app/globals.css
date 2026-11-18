@@ -59,3 +59,13 @@ footer{margin-top:70px;border-top:1px solid var(--line);background:#fff}.footer-
 .growth-message{margin-top:20px}.growth-message h2{margin:5px 0 10px}
 @media(max-width:900px){.plans-grid,.pricing-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.public-stats,.plans-grid,.pricing-admin-grid,.billing-hero{grid-template-columns:1fr}}
+
+.communication-summary{display:flex;align-items:center;gap:8px;margin:18px 0;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+.communication-summary b{color:var(--blue);font-size:1rem}
+.communication-list{display:grid;gap:14px}
+.communication-card{box-shadow:0 8px 24px rgba(14,38,72,.05)}
+.communication-unread{border-left:4px solid var(--blue)}
+.communication-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.communication-head h2{margin:5px 0 0;font-size:1.2rem;line-height:1.3}
+.communication-body{color:var(--ink);margin:18px 0;max-width:850px}
+.communication-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-bottom:14px}
