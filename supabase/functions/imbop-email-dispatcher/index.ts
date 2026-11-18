@@ -4,16 +4,22 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const IMBOP_EMAIL_FROM = Deno.env.get("IMBOP_EMAIL_FROM");
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://imbop-operations.vercel.app",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function corsHeadersFor(origin: string | null) {
+  const allowed =
+    origin === "https://imbop-operations.vercel.app" ||
+    /^https:\/\/imbop-operations-[a-z0-9-]+-actifys-projects-3f24c657\.vercel\.app$/.test(origin ?? "");
+  return {
+    "Access-Control-Allow-Origin": allowed && origin ? origin : "https://imbop-operations.vercel.app",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
+    headers: { "Content-Type": "application/json", ...corsHeadersFor(origin) },
   });
 }
 
@@ -36,14 +42,15 @@ async function rpc(name: string, args: Record<string, unknown>, authHeader: stri
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") {
-    return new Response("ok", { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeadersFor(origin) });
   }
-  if (req.method !== "POST") return json({error:"METHOD_NOT_ALLOWED"},405);
+  if (req.method !== "POST") return json({error:"METHOD_NOT_ALLOWED"},405,origin);
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return json({error:"AUTHORIZATION_REQUIRED"},401);
+  if (!authHeader?.startsWith("Bearer ")) return json({error:"AUTHORIZATION_REQUIRED"},401,origin);
   if (!RESEND_API_KEY || !IMBOP_EMAIL_FROM) {
-    return json({error:"EMAIL_PROVIDER_NOT_CONFIGURED",message:"Set RESEND_API_KEY and IMBOP_EMAIL_FROM before enabling external email delivery."},503);
+    return json({error:"EMAIL_PROVIDER_NOT_CONFIGURED",message:"Set RESEND_API_KEY and IMBOP_EMAIL_FROM before enabling external email delivery."},503,origin);
   }
 
   let payload:{delivery_id?:string}={};
@@ -55,11 +62,11 @@ Deno.serve(async (req: Request) => {
       const queue=await rpc("get_platform_email_queue",{p_status:"QUEUED",p_limit:1,p_offset:0},authHeader) as Array<{delivery_id:string}>;
       deliveryId=queue?.[0]?.delivery_id;
     }
-    if (!deliveryId) return json({ok:true,status:"EMPTY_QUEUE"});
+    if (!deliveryId) return json({ok:true,status:"EMPTY_QUEUE"},200,origin);
 
     const claimed=await rpc("claim_platform_email_delivery",{p_delivery_id:deliveryId},authHeader) as Array<{delivery_id:string;recipient_email:string;subject:string;body:string}>;
     const item=claimed?.[0];
-    if (!item) return json({ok:true,status:"NOT_CLAIMED",delivery_id:deliveryId});
+    if (!item) return json({ok:true,status:"NOT_CLAIMED",delivery_id:deliveryId},200,origin);
 
     const response=await fetch("https://api.resend.com/emails",{
       method:"POST",
@@ -88,15 +95,15 @@ Deno.serve(async (req: Request) => {
         p_provider_message_id:providerData?.id??null,
         p_failure_reason:providerData?.message??providerText.slice(0,1000)
       },authHeader);
-      return json({ok:false,status:"FAILED",delivery_id:item.delivery_id,provider_status:response.status},502);
+      return json({ok:false,status:"FAILED",delivery_id:item.delivery_id,provider_status:response.status},502,origin);
     }
 
     await rpc("record_platform_email_delivery_result",{
       p_delivery_id:item.delivery_id,p_status:"DELIVERED",p_provider_message_id:providerData?.id??null
     },authHeader);
 
-    return json({ok:true,status:"DELIVERED",delivery_id:item.delivery_id,provider_message_id:providerData?.id??null});
+    return json({ok:true,status:"DELIVERED",delivery_id:item.delivery_id,provider_message_id:providerData?.id??null},200,origin);
   } catch(error) {
-    return json({ok:false,status:"DISPATCH_ERROR",message:error instanceof Error?error.message:"Unknown error"},500);
+    return json({ok:false,status:"DISPATCH_ERROR",message:error instanceof Error?error.message:"Unknown error"},500,origin);
   }
 });
