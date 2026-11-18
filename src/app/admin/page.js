@@ -112,21 +112,22 @@ export default function AdminPage() {
         setMessage("Your authenticated platform session is required to process queued email.");
         return;
       }
-      const { data, error } = await supabase.functions.invoke("imbop-email-dispatcher", {
-        body: {},
-        headers: { Authorization: `Bearer ${session.access_token}` }
+      const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const apikey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const response = await fetch(base + "/functions/v1/imbop-email-dispatcher", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({})
       });
-      if (error) {
-        let detail = error.message || "Email dispatcher invocation failed.";
-        if (error.context) {
-          try {
-            const payload = await error.context.json();
-            detail = payload?.message || payload?.error || detail;
-          } catch {}
-        }
-        setMessage(detail);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMessage(data?.message || data?.error || `Email dispatcher returned HTTP ${response.status}.`);
       } else if (!data?.ok) {
-        setMessage(data?.message || `Email dispatcher returned ${data?.status || "an error"}.`);
+        setMessage(data?.message || data?.error || `Email dispatcher returned ${data?.status || "an error"}.`);
       } else if (data.status === "EMPTY_QUEUE") {
         setMessage("Email dispatcher ran successfully: the queue is empty.");
       } else {
