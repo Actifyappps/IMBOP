@@ -4,9 +4,19 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const IMBOP_EMAIL_FROM = Deno.env.get("IMBOP_EMAIL_FROM");
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "https://imbop-operations.vercel.app",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
 }
+
 function escapeHtml(value: string) {
   return value.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
@@ -26,6 +36,9 @@ async function rpc(name: string, args: Record<string, unknown>, authHeader: stri
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 204, headers: corsHeaders });
+  }
   if (req.method !== "POST") return json({error:"METHOD_NOT_ALLOWED"},405);
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return json({error:"AUTHORIZATION_REQUIRED"},401);
