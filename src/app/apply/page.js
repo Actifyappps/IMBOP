@@ -78,7 +78,7 @@ export default function Apply(){
     <div className="card" style={{maxWidth:820,margin:"auto"}}>
       <div className="eyebrow">APPLY / JOIN</div>
       <h1>Apply to IMBOP</h1>
-      <p><b>Application ≠ Publication.</b> Submission starts a review process. Only an authorised decision-maker can publish a record.</p>
+      <p><b>Application ≠ Publication.</b> Submission starts a review process. Only an authorised decision-maker can publish a record.</p><div className="notice pricing-disclosure"><b>IMBOP PRICING:</b> Institutions and their first 50 IMBOP Onboards are free. Beyond 50, the Institution moves to a numbers-based plan. <b>Individual Institution Members are not billed.</b> See <a href="/plans"><b>IMBOP Plans &amp; Pricing</b></a>.</div>
 
       <div className="actions" style={{margin:"20px 0"}}>
         <button className={`btn ${type==="institution"?"":"alt"}`} onClick={()=>{setType("institution");setMsg("")}}>INSTITUTION</button>
@@ -128,7 +128,7 @@ export default function Apply(){
         </div>
         <label className="label">LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} required/>
         <label className="label">ABOUT THE INSTITUTION</label><textarea className="textarea" value={institution.description} onChange={e=>setInstitutionField("description",e.target.value)} required/>
-        <button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
+        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div><button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
       </form>}
 
       {msg && <div className="notice" style={{marginTop:20}}>{msg}</div>}
