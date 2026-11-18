@@ -3,6 +3,8 @@ import Nav from "../../../components/Nav";
 import Footer from "../../../components/Footer";
 import {supabase} from "../../../lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export default async function InstitutionSpace({params}){
   const {slug}=await params;
   const {data,error}=await supabase.rpc("search_public_institutions",{
