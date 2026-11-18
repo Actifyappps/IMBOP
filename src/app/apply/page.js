@@ -42,7 +42,7 @@ export default function Apply(){
     });
     setBusy(false);
     if(error)return setMsg(error.message);
-    setMsg("Application submitted successfully. It is now PENDING REVIEW and will not become public until the authorised institution publishes it.");
+    window.location.href="/apply/confirmation";
   }
 
   async function submitInstitution(e){
