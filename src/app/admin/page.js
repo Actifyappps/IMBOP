@@ -106,17 +106,37 @@ export default function AdminPage() {
   async function dispatchOneQueuedEmail() {
     if (!window.confirm("Process one queued IMBOP email now?")) return;
     setWorking("email-dispatch"); setMessage("");
-    const { data, error } = await supabase.functions.invoke("imbop-email-dispatcher", { body: {} });
-    if (error) {
-      setMessage(error.message || "Email dispatcher invocation failed.");
-    } else if (!data?.ok) {
-      setMessage(data?.message || `Email dispatcher returned ${data?.status || "an error"}.`);
-    } else if (data.status === "EMPTY_QUEUE") {
-      setMessage("Email dispatcher ran successfully: the queue is empty.");
-    } else {
-      setMessage(`Email dispatcher completed: ${data.status || "OK"}.`);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setMessage("Your authenticated platform session is required to process queued email.");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("imbop-email-dispatcher", {
+        body: {},
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      if (error) {
+        let detail = error.message || "Email dispatcher invocation failed.";
+        if (error.context) {
+          try {
+            const payload = await error.context.json();
+            detail = payload?.message || payload?.error || detail;
+          } catch {}
+        }
+        setMessage(detail);
+      } else if (!data?.ok) {
+        setMessage(data?.message || `Email dispatcher returned ${data?.status || "an error"}.`);
+      } else if (data.status === "EMPTY_QUEUE") {
+        setMessage("Email dispatcher ran successfully: the queue is empty.");
+      } else {
+        setMessage(`Email dispatcher completed: ${data.status || "OK"}.`);
+      }
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Email dispatcher invocation failed.");
+    } finally {
+      setWorking(null);
     }
-    setWorking(null);
   }
 
   function controls(i){
