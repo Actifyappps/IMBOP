@@ -13,7 +13,7 @@ const presets=[
 function formatNumber(value){return new Intl.NumberFormat("en-KE").format(Number(value)||0)}
 
 export default function Discover(){
-  const[q,setQ]=useState(""),[preset,setPreset]=useState("Any"),[min,setMin]=useState(""),[max,setMax]=useState("");
+  const[q,setQ]=useState(""),[preset,setPreset]=useState("Any"),[min,setMin]=useState(""),[max,setMax]=useState(""),[initial,setInitial]=useState("");
   const[items,setItems]=useState([]),[total,setTotal]=useState(0),[page,setPage]=useState(0),[loading,setLoading]=useState(true),[error,setError]=useState("");
 
   async function load(nextPage=0){
@@ -21,12 +21,14 @@ export default function Discover(){
     const selected=presets.find(x=>x.label===preset)||presets[0];
     const customMin=min===""?null:Math.max(0,Number(min)), customMax=max===""?null:Math.max(0,Number(max));
     const pMin=customMin!==null?customMin:selected.min, pMax=customMax!==null?customMax:selected.max;
-    const {data,error}=await supabase.rpc("search_public_institutions",{p_query:q.trim()||null,p_min_onboards:pMin,p_max_onboards:pMax,p_limit:12,p_offset:nextPage*12});
+    const rpcName=initial?"search_public_institutions_by_initial":"search_public_institutions";
+    const rpcArgs=initial?{p_initial:initial,p_query:q.trim()||null,p_min_onboards:pMin,p_max_onboards:pMax,p_limit:12,p_offset:nextPage*12}:{p_query:q.trim()||null,p_min_onboards:pMin,p_max_onboards:pMax,p_limit:12,p_offset:nextPage*12};
+    const {data,error}=await supabase.rpc(rpcName,rpcArgs);
     if(error){setError(error.message);setItems([]);setTotal(0)}
     else{setItems(data||[]);setTotal(Number(data?.[0]?.total_count||0));setPage(nextPage)}
     setLoading(false);
   }
-  useEffect(()=>{load(0)},[preset]);
+  useEffect(()=>{load(0)},[preset,initial]);
   const pages=Math.ceil(total/12);
 
   return <><Nav/><main className="wrap">
@@ -39,6 +41,11 @@ export default function Discover(){
       <div className="discovery-search">
         <input id="institution-search" className="input" value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&load(0)} placeholder="Search by institution name, type or description"/>
         <button className="btn" onClick={()=>load(0)}>SEARCH</button>
+      </div>
+      <div className="filter-heading">ALPHABETICAL</div>
+      <div className="filter-presets">
+        <button type="button" className={"filter-chip "+(!initial?"active":"")} onClick={()=>setInitial("")}>ALL</button>
+        {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(letter=><button key={letter} type="button" className={"filter-chip "+(initial===letter?"active":"")} onClick={()=>{setInitial(letter);setPage(0)}}>{letter}</button>)}
       </div>
       <div className="filter-heading">IMBOP ONBOARDS</div>
       <div className="filter-presets">{presets.map(x=><button key={x.label} type="button" className={"filter-chip "+(preset===x.label?"active":"")} onClick={()=>{setPreset(x.label);if(min||max){setMin("");setMax("")}}}>{x.label}</button>)}</div>
