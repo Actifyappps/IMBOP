@@ -1,6 +1,5 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
-import {useSearchParams} from "next/navigation";
 import {supabase} from "../../lib/supabase";
 import Nav from "../../components/Nav";
 import Footer from "../../components/Footer";
@@ -9,7 +8,8 @@ const money=n=>n==null?"NEGOTIATED":"KES "+Number(n).toLocaleString("en-KE");
 const tabs=[["overview","OVERVIEW"],["applications","APPLICATIONS"],["members","MEMBERS"],["space","IMBOP SPACE"],["communications","COMMUNICATIONS"],["plan","PLAN"]];
 
 export default function InstitutionAdmin(){
- const params=useSearchParams(), tab=params.get("tab")||"overview";
+ const[tab,setTab]=useState("overview");
+ useEffect(()=>{setTab(new URLSearchParams(window.location.search).get("tab")||"overview")},[]);
  const[ctx,setCtx]=useState(null),[dash,setDash]=useState(null),[apps,setApps]=useState([]),[members,setMembers]=useState([]),[comms,setComms]=useState([]),[space,setSpace]=useState(null),[anns,setAnns]=useState([]),[plans,setPlans]=useState([]),[loading,setLoading]=useState(true),[err,setErr]=useState(""),[notice,setNotice]=useState(""),[working,setWorking]=useState("");
  async function load(){
   setLoading(true);setErr("");
