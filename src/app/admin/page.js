@@ -16,20 +16,28 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [adminDrafts, setAdminDrafts] = useState({});
   const [pricingPlans, setPricingPlans] = useState([]);
+  const [commRecipients, setCommRecipients] = useState([]);
+  const [commTemplates, setCommTemplates] = useState([]);
+  const [commDraft, setCommDraft] = useState({recipient:"",template:"",subject:"",body:""});
 
   async function loadData() {
     setLoading(true); setMessage("");
-    const [a, i, o, p] = await Promise.all([
+    const [a, i, o, p, cr, ct] = await Promise.all([
       supabase.from("institution_applications").select("*").in("status", REVIEWABLE).order("submitted_at", {ascending:true}),
       supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true}),
       supabase.rpc("platform_institution_onboarding_overview"),
-      supabase.rpc("get_platform_pricing_plans")
+      supabase.rpc("get_platform_pricing_plans"),
+      supabase.rpc("get_platform_communication_recipients"),
+      supabase.rpc("get_platform_communication_templates")
     ]);
     if (a.error) setMessage(a.error.message);
     if (i.error) setMessage((p)=>p || i.error.message);
     if (o.error) setMessage((p)=>p || o.error.message);
     if (p.error) setMessage((m)=>m || p.error.message);
-    setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setPricingPlans(p.data || []); setLoading(false);
+    if (cr.error) setMessage((m)=>m || cr.error.message);
+    if (ct.error) setMessage((m)=>m || ct.error.message);
+    setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setPricingPlans(p.data || []);
+    setCommRecipients(cr.data || []); setCommTemplates(ct.data || []); setLoading(false);
   }
   useEffect(()=>{loadData()},[]);
 
@@ -180,6 +188,34 @@ export default function AdminPage() {
           }}>SAVE PRICING PLAN</button>
         </details>
       </article>)}</div>
+    </section>
+
+    <section className="admin-section">
+      <div className="section-heading"><div><div className="eyebrow">COMMUNICATIONS CENTRE</div><h2>SE Admin Communications</h2></div><span className="count-badge">{commRecipients.length} institution admins</span></div>
+      <div className="card pricing-admin-note"><b>Controlled communications only.</b> Messages sent here are recorded as ADMIN communications and delivered in-app. Email delivery is intentionally not marked as sent until an approved email provider is connected.</div>
+      <div className="card">
+        <div className="grid">
+          <div><label className="label">RECIPIENT</label><select className="input" value={commDraft.recipient} onChange={e=>setCommDraft(d=>({...d,recipient:e.target.value}))}>
+            <option value="">Select institution administrator</option>
+            {commRecipients.map(r=><option key={r.user_id} value={r.user_id}>{r.institution_name} — {r.email}</option>)}
+          </select></div>
+          <div><label className="label">TEMPLATE</label><select className="input" value={commDraft.template} onChange={e=>{
+            const t=commTemplates.find(x=>x.template_code===e.target.value);
+            setCommDraft(d=>({...d,template:e.target.value,subject:t?.default_subject||d.subject,body:t?.default_body||d.body}));
+          }}><option value="">Custom message</option>{commTemplates.map(t=><option key={t.template_code} value={t.template_code}>{t.template_name}</option>)}</select></div>
+        </div>
+        <label className="label">SUBJECT</label><input className="input" value={commDraft.subject} onChange={e=>setCommDraft(d=>({...d,subject:e.target.value}))}/>
+        <label className="label">MESSAGE</label><textarea className="textarea" rows="7" value={commDraft.body} onChange={e=>setCommDraft(d=>({...d,body:e.target.value}))}/>
+        <button className="admin-btn admin-btn-primary" disabled={working==="comm"} onClick={async()=>{
+          const r=commRecipients.find(x=>x.user_id===commDraft.recipient);
+          if(!r||!commDraft.subject.trim()||!commDraft.body.trim()) return setMessage("Recipient, subject and message are required.");
+          setWorking("comm");setMessage("");
+          const v=await supabase.rpc("send_platform_in_app_communication",{p_recipient_user_id:r.user_id,p_institution_id:r.institution_id,p_subject:commDraft.subject,p_body:commDraft.body,p_communication_type:commTemplates.find(x=>x.template_code===commDraft.template)?.communication_type||"PLATFORM_NOTICE",p_event_type:"ADMIN_MESSAGE"});
+          if(v.error||!v.data?.ok)setMessage(v.error?.message||v.data?.error||"Communication send failed.");
+          else {setMessage("Communication recorded and delivered in-app.");setCommDraft({recipient:"",template:"",subject:"",body:""});}
+          setWorking(null);
+        }}>SEND IN-APP COMMUNICATION</button>
+      </div>
     </section>
 
     <section className="admin-section">
