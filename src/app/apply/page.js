@@ -78,12 +78,13 @@ export default function Apply(){
     <div className="card" style={{maxWidth:820,margin:"auto"}}>
       <div className="eyebrow">APPLY / JOIN</div>
       <h1>Apply to IMBOP</h1>
-      <p><b>Application ≠ Publication.</b> Submission starts a review process. Only an authorised decision-maker can publish a record.</p><div className="notice pricing-disclosure"><b>IMBOP PRICING:</b> Institutions and their first 50 IMBOP Onboards are free. Beyond 50, the Institution moves to a numbers-based plan. <b>Individual Institution Members are not billed.</b> See <a href="/plans"><b>IMBOP Plans &amp; Pricing</b></a>.</div>
+      <div className="notice pricing-disclosure"><b>IMBOP PRICING:</b> Institutions and their first 50 IMBOP Onboards are free. Beyond 50, the Institution moves to a numbers-based plan. <b>Individual Institution Members are not billed.</b> See <a href="/plans"><b>IMBOP Plans &amp; Pricing</b></a>.</div>
 
       <div className="actions" style={{margin:"20px 0"}}>
         <button className={`btn ${type==="institution"?"":"alt"}`} onClick={()=>{setType("institution");setMsg("")}}>INSTITUTION</button>
         <button className={`btn ${type==="member"?"":"alt"}`} onClick={()=>{setType("member");setMsg("")}}>INSTITUTION MEMBER</button>
       </div>
+      <p><b>Application ≠ Publication.</b> Submission starts a review process. Only an authorised decision-maker can publish a record.</p>
 
       {!type && <div className="notice">Choose <b>INSTITUTION</b> or <b>INSTITUTION MEMBER</b> to begin.</div>}
 
