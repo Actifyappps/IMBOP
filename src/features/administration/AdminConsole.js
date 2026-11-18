@@ -223,7 +223,7 @@ export default function AdminConsole({section="dashboard"}) {
         <div className="admin-actions">
           {!r.configured&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>openDrawer("confirm-config",{id:i.id,title:"Complete institution configuration"})}>COMPLETE CONFIGURATION</button>}
           {(r.active_admin_count??0)<1&&<button className="admin-btn" disabled={working===i.id} onClick={()=>openDrawer("assign-admin",{id:i.id,title:"Assign / invite institution administrator"})>ASSIGN / INVITE ADMIN</button>}
-          {r.ready_to_activate&&String(i.status).toUpperCase()!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>manageInstitution(i.id,"ACTIVATE")}>ACTIVATE</button>}
+          {r.ready_to_activate&&String(i.status).toUpperCase()!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" disabled={working===i.id} onClick={()=>openDrawer("lifecycle",{id:i.id,action:"ACTIVATE",title:"Activate institution"})}>ACTIVATE</button>}
         </div>
       </article>})}</div>
     </section>
