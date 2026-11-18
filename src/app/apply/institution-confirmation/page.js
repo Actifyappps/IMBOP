@@ -19,7 +19,7 @@ export default function InstitutionApplicationConfirmation(){
         <p>You can also configure your Institution's IMBOP space with your <b>information and brand</b>, and build it with your Members' <b>profiles, businesses, offers, needs and opportunities</b>.</p>
         <p style={{marginBottom:0}}><b>The more your Institution builds its IMBOP space, the more there is for Members to Explore. Know. Discover. Enquire. Connect.</b></p>
       </div>
-      <p><b>We welcome your Institution into IMBOP.</b></p>
+      <div className="notice pricing-disclosure" style={{margin:"24px 0",textAlign:"left"}}><b>IMBOP PRICING:</b> Institutions and their first 50 IMBOP Onboards are free. Beyond 50, the Institution moves to a numbers-based plan. The first transition month uses a discounted minimum of <b>KES 5,000</b>. <b>Individual Institution Members are not billed.</b> <Link href="/plans"><b>View Plans &amp; Pricing.</b></Link></div><p><b>We welcome your Institution into IMBOP.</b></p>
       <div className="actions" style={{justifyContent:"center"}}>
         <Link className="btn" href="/discover">EXPLORE IMBOP</Link>
         <Link className="btn alt" href="/">RETURN HOME</Link>
