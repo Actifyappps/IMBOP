@@ -71,7 +71,7 @@ export default function Apply(){
     });
     setBusy(false);
     if(error)return setMsg(error.message);
-    setMsg("Institution application submitted successfully. It is now PENDING REVIEW by Saintsway Equity.");
+    window.location.href="/apply/institution-confirmation";
   }
 
   return <><Nav/><main className="wrap">
