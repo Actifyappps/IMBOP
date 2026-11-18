@@ -12,9 +12,9 @@ Deno.serve(async(req)=>{
   const rest=async(path:string,init:any={})=>{const r=await fetch(base+"/rest/v1/"+path,{...init,headers:{...h,...(init.headers||{})}}),t=await r.text();let d:any;try{d=JSON.parse(t)}catch{d=t}if(!r.ok)throw new Error(typeof d==="string"?d:(d?.message||d?.details||"Database request failed"));return d};
   const body=await req.json(),iid=body?.institution_id,email=(body?.email||"").trim().toLowerCase(),first=(body?.first_name||"").trim(),last=(body?.last_name||"").trim();
   if(!iid||!email||!email.includes("@"))return json({error:"Institution ID and valid email are required"},400);
-  const pm=await rest("memberships?select=id&user_id=eq."+encodeURIComponent(user.id)+"&status=eq.active&limit=1");
-  if(!pm.length)return json({error:"Active platform membership required"},403);
-  const pmr=await rest("membership_roles?select=role_id&membership_id=eq."+pm[0].id),prids=pmr.map((x:any)=>x.role_id);
+  const pur=await rest("platform_user_roles?select=role_id&user_id=eq."+encodeURIComponent(user.id)+"&status=eq.active&limit=20");
+  if(!pur.length)return json({error:"Platform role assignment required"},403);
+  const prids=pur.map((x:any)=>x.role_id);
   const proles=await rest("roles?select=id&scope=eq.platform&code=in.(se_platform_owner,se_operations_admin)&id=in.("+prids.join(",")+")&limit=10");
   if(!proles.length)return json({error:"Platform administration permission required"},403);
   const pids=(await rest("role_permissions?select=permission_id&role_id=in.("+proles.map((x:any)=>x.id).join(",")+")")).map((x:any)=>x.permission_id);
