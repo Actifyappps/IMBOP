@@ -139,13 +139,13 @@ export default function AdminConsole({section="dashboard"}) {
 
   function controls(i){
     const s=String(i.status||"").toUpperCase();
-    if(i.deleted_at)return <button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"RESTORE",title:"Restore institution"})>RESTORE</button>;
+    if(i.deleted_at)return <button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"RESTORE",title:"Restore institution"})}>RESTORE</button>;
     return <>
-      {s!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"ACTIVATE",title:"Activate institution"})>ACTIVATE</button>}
-      <button className="admin-btn" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"PAUSE",title:"Pause institution"})>PAUSE</button>
-      <button className="admin-btn" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"SUSPEND",title:"Suspend institution"})>SUSPEND</button>
-      <button className="admin-btn admin-btn-danger" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"SHUT",title:"Shut institution"})>SHUT</button>
-      <button className="admin-btn admin-btn-danger" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"DELETE",title:"Delete institution"})>DELETE</button>
+      {s!=="ACTIVE"&&<button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"ACTIVATE",title:"Activate institution"})}>ACTIVATE</button>}
+      <button className="admin-btn" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"PAUSE",title:"Pause institution"})}>PAUSE</button>
+      <button className="admin-btn" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"SUSPEND",title:"Suspend institution"})}>SUSPEND</button>
+      <button className="admin-btn admin-btn-danger" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"SHUT",title:"Shut institution"})}>SHUT</button>
+      <button className="admin-btn admin-btn-danger" onClick={()=>openDrawer("lifecycle",{id:i.id,action:"DELETE",title:"Delete institution"})}>DELETE</button>
     </>;
   }
 
