@@ -231,6 +231,9 @@ export default function AdminPage() {
           else {setMessage("Communication recorded and delivered in-app.");setCommDraft({recipient:"",template:"",subject:"",body:""});}
           setWorking(null);
         }}>SEND IN-APP COMMUNICATION</button>
+        <div className="admin-actions" style={{marginTop:"0.75rem"}}>
+          <button className="admin-btn" disabled={working==="email-dispatch"} onClick={dispatchOneQueuedEmail}>{working==="email-dispatch"?"PROCESSING…":"PROCESS ONE QUEUED EMAIL"}</button>
+        </div>
       </div>
     </section>
 
