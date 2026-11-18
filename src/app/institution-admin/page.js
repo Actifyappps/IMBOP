@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useState} from "react";
 import {supabase} from "../../lib/supabase";
 import Nav from "../../components/Nav";
 import Footer from "../../components/Footer";
