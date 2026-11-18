@@ -239,3 +239,7 @@ begin
   return jsonb_build_object('ok',true,'status',v_action);
 end;
 $function$;
+
+
+create index if not exists communication_records_sender_user_idx on public.communication_records(sender_user_id, created_at desc);
+create index if not exists communication_templates_updated_by_user_idx on public.communication_templates(updated_by_user_id);
