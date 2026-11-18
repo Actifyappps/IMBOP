@@ -1,5 +1,5 @@
 -- Alphabetical public institution discovery.
-create or replace function public.search_public_institutions_by_initial(
+create or replace function private.search_public_institutions_by_initial(
   p_initial text default null, p_query text default null,
   p_min_onboards integer default null, p_max_onboards integer default null,
   p_limit integer default 24, p_offset integer default 0
@@ -33,5 +33,20 @@ as $$
   limit greatest(1, least(coalesce(p_limit, 24), 100))
   offset greatest(coalesce(p_offset, 0), 0);
 $$;
+revoke all on function private.search_public_institutions_by_initial(text,text,integer,integer,integer,integer) from public, anon, authenticated, service_role;
+grant execute on function private.search_public_institutions_by_initial(text,text,integer,integer,integer,integer) to anon, authenticated;
+
+drop function if exists public.search_public_institutions_by_initial(text,text,integer,integer,integer,integer);
+create or replace function public.search_public_institutions_by_initial(
+  p_initial text default null, p_query text default null,
+  p_min_onboards integer default null, p_max_onboards integer default null,
+  p_limit integer default 24, p_offset integer default 0
+)
+returns table (
+  institution_id uuid, name text, legal_name text, slug text, institution_type text, description text,
+  stated_membership_count integer, imbop_onboards bigint, total_count bigint
+)
+language sql stable security invoker set search_path = public
+as $ select * from private.search_public_institutions_by_initial(p_initial,p_query,p_min_onboards,p_max_onboards,p_limit,p_offset); $;
 revoke all on function public.search_public_institutions_by_initial(text,text,integer,integer,integer,integer) from public;
 grant execute on function public.search_public_institutions_by_initial(text,text,integer,integer,integer,integer) to anon, authenticated;
