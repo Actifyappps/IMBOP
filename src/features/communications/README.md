@@ -84,6 +84,18 @@ Both are recorded and auditable.
 
 Admins must not be able to send untracked communications.
 
+## Current implemented vertical slice
+
+The first production-path slice is now seated:
+
+**Approved publication event → communication record → in-app delivery → read/audit state**
+
+When an Institution publishes a member application that has a linked business owner account, IMBOP creates an auditable system communication and an in-app delivery for that authenticated business owner. The recipient can view the message in the authenticated **Notifications** area and mark it as read.
+
+The database enforces recipient isolation with RLS; anonymous users cannot read the communication tables or execute the inbox/read RPCs.
+
+Email remains the next delivery channel. The architecture is intentionally ready for it without coupling the current in-app slice to an email provider.
+
 ## Future module boundaries
 
 Add code beneath this feature only when the corresponding capability has real implementation logic:
