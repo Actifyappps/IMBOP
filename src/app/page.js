@@ -15,21 +15,25 @@ export default function Home() {
 
             <p className="hero-intro">Connecting members and their businesses, offers and needs.</p>
 
-            <h2>Are you a MEMBER of an INSTITUTION?</h2>
+            <h2>ARE YOU A MEMBER OF AN INSTITUTION?</h2>
             <p>Cooperative, SACCO, Chama, Business Network, Group...</p>
-
             <p>
-              Ask your <b>INSTITUTION TO APPLY</b> to IMBOP, if it <b>HASN'T YET</b>, and{" "}
-              <b>CREATE</b> a MEMBERS-ONLY SPACE for all your member profiles, businesses,
-              offers, needs &amp; updates.
+              Ask your <b>INSTITUTION TO APPLY</b> to IMBOP, if it <b>HASN&apos;T YET</b>, and{" "}
+              <b>CREATE</b> a <b>MEMBERS-ONLY SPACE</b> for all your member profiles, businesses, offers, needs &amp; updates.
             </p>
 
-            <p>Then <b>APPLY / JOIN</b> yourself and</p>
+            <p className="apply-line">
+              Then <b>APPLY / JOIN</b> yourself and
+            </p>
 
             <h2 className="journey-heading">EXPLORE. KNOW. DISCOVER. ENQUIRE. CONNECT.</h2>
-            <p>With your co-members, their businesses &amp; opportunities.</p>
+            <p>
+              With your co-members, their businesses &amp; opportunities.
+            </p>
 
-            <p className="apply-line"><b>APPLY / JOIN</b> — Either as an Institution or Institution Member.</p>
+            <p className="apply-line">
+              <b>APPLY / JOIN</b> — Either as an Institution or Institution Member.
+            </p>
 
             <p>
               For Members, your institution decides whether to publish.{" "}
@@ -51,7 +55,8 @@ export default function Home() {
             <div className="closing-brand">
               <div>SAINTSWAY EQUITY</div>
               <p><i>The Operating Infrastructure for Trusted MSME &amp; Cooperative Ownership</i></p>
-              <p><b>IMBOP · Institutional Members Business &amp; Opportunities Platform</b></p>
+              <div>IMBOP</div>
+              <p><i>Institutional Economic Network Infrastructure</i></p>
             </div>
           </div>
         </section>
