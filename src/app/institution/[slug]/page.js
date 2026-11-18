@@ -4,9 +4,18 @@ import Footer from "../../../components/Footer";
 import {supabase} from "../../../lib/supabase";
 
 export default async function InstitutionSpace({params}){
-  const {data}=await supabase.rpc("search_public_institutions",{p_query:null,p_min_onboards:null,p_max_onboards:null,p_limit:100,p_offset:0});
-  const institution=(data||[]).find(x=>x.slug===params.slug);
+  const {slug}=await params;
+  const {data,error}=await supabase.rpc("search_public_institutions",{
+    p_query:slug,
+    p_min_onboards:null,
+    p_max_onboards:null,
+    p_limit:1,
+    p_offset:0
+  });
+  const institution=!error?(data||[]).find(x=>x.slug===slug):null;
+
   if(!institution) return <><Nav/><main className="wrap"><div className="card"><div className="eyebrow">IMBOP SPACE</div><h1>Institution Not Found</h1><p>This institution is not currently available as a public IMBOP Space.</p><Link className="btn" href="/discover">BACK TO DISCOVER</Link></div></main><Footer/></>;
+
   return <><Nav/><main className="wrap">
     <div className="eyebrow">IMBOP SPACE</div>
     <div className="institution-space-hero card"><h1>{institution.name}</h1>
