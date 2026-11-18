@@ -103,6 +103,22 @@ export default function AdminPage() {
     setMessage(action+" completed and audited.");await loadData();setWorking(null);
   }
 
+  async function dispatchOneQueuedEmail() {
+    if (!window.confirm("Process one queued IMBOP email now?")) return;
+    setWorking("email-dispatch"); setMessage("");
+    const { data, error } = await supabase.functions.invoke("imbop-email-dispatcher", { body: {} });
+    if (error) {
+      setMessage(error.message || "Email dispatcher invocation failed.");
+    } else if (!data?.ok) {
+      setMessage(data?.message || `Email dispatcher returned ${data?.status || "an error"}.`);
+    } else if (data.status === "EMPTY_QUEUE") {
+      setMessage("Email dispatcher ran successfully: the queue is empty.");
+    } else {
+      setMessage(`Email dispatcher completed: ${data.status || "OK"}.`);
+    }
+    setWorking(null);
+  }
+
   function controls(i){
     const s=String(i.status||"").toUpperCase();
     if(i.deleted_at)return <button className="admin-btn admin-btn-primary" onClick={()=>manageInstitution(i.id,"RESTORE")}>RESTORE</button>;
