@@ -9,7 +9,6 @@ export default function InstitutionApplicationConfirmation(){
       <div className="eyebrow">APPLICATION RECEIVED</div>
       <h1>Welcome to IMBOP.</h1>
       <p><b>Your Institution Application Is In.</b></p>
-      <p><b>Application ≠ Publication.</b></p>
       <p>Your application to join <b>IMBOP — Institutional Economic Network Infrastructure</b> has been received and is now <b>PENDING REVIEW by SE IMBOP</b>.</p>
       <div className="notice" style={{margin:"24px 0",textAlign:"left"}}>
         <b>What happens next?</b><br/>
@@ -24,6 +23,7 @@ export default function InstitutionApplicationConfirmation(){
         <Link className="btn" href="/discover">EXPLORE IMBOP</Link>
         <Link className="btn alt" href="/">RETURN HOME</Link>
       </div>
+      <p><b>Application ≠ Publication.</b></p>
     </div>
 
     <div className="card" style={{maxWidth:820,margin:"24px auto 0",textAlign:"center"}}>
