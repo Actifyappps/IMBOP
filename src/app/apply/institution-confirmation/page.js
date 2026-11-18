@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import Nav from "../../components/Nav";
-import Footer from "../../components/Footer";
+import Nav from "../../../components/Nav";
+import Footer from "../../../components/Footer";
 
 export default function InstitutionApplicationConfirmation(){
   return <><Nav/><main className="wrap">

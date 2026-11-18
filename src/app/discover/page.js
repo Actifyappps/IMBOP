@@ -1,9 +1,9 @@
 "use client";
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import Nav from "../components/Nav";
-import Footer from "../components/Footer";
-import {supabase} from "../lib/supabase";
+import Nav from "../../components/Nav";
+import Footer from "../../components/Footer";
+import {supabase} from "../../lib/supabase";
 
 const presets=[
   {label:"Any",min:null,max:null},{label:"1+",min:1,max:null},{label:"100+",min:100,max:null},

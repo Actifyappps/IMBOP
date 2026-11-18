@@ -1,8 +1,8 @@
 "use client";
 import {useEffect,useState} from "react";
-import Nav from "../components/Nav";
-import Footer from "../components/Footer";
-import {supabase} from "../lib/supabase";
+import Nav from "../../components/Nav";
+import Footer from "../../components/Footer";
+import {supabase} from "../../lib/supabase";
 
 const empty={name:"",email:"",phone:"",business:"",description:"",sector:"",location:""};
 const instEmpty={institution_name:"",legal_name:"",institution_type:"",contact_name:"",contact_email:"",contact_phone:"",membership_size:"",website:"",location:"",description:""};

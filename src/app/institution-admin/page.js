@@ -1,8 +1,8 @@
 "use client";
 import {useEffect,useState} from "react";
-import {supabase} from "../lib/supabase";
-import Nav from "../components/Nav";
-import Footer from "../components/Footer";
+import {supabase} from "../../lib/supabase";
+import Nav from "../../components/Nav";
+import Footer from "../../components/Footer";
 const money=n=>n==null?"NEGOTIATED":"KES "+Number(n).toLocaleString("en-KE");
 export default function InstitutionAdmin(){
  const[ctx,setCtx]=useState(null),[dash,setDash]=useState(null),[apps,setApps]=useState([]),[err,setErr]=useState("");

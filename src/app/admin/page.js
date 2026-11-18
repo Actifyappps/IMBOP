@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Nav from "../components/Nav";
-import Footer from "../components/Footer";
-import { supabase } from "../lib/supabase";
+import Nav from "../../components/Nav";
+import Footer from "../../components/Footer";
+import { supabase } from "../../lib/supabase";
 
 const REVIEWABLE = ["SUBMITTED", "PENDING_REVIEW", "RETURNED"];
 
