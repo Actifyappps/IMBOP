@@ -33,7 +33,7 @@ export default function BillingPage(){
   const amount=Number(pay.amount);if(!amount||amount<=0)return setMessage("Enter a valid payment amount.");
   if(pay.method==="MPESA"&&!pay.phone.trim())return setMessage("Enter the M-Pesa phone number for this payment.");
   setMessage("");setLoading(true);
-  const {data,error}=await supabase.rpc("platform_create_payment_intent",{p_institution_id:summary.institution_id,p_amount_kes:amount,p_payment_method:pay.method,p_invoice_id:selected.id,p_provider:pay.provider||null,p_expires_at:null,p_metadata:{phone:pay.phone.trim()||null,source:"institution_billing_ui"}});
+  const {data,error}=await supabase.rpc("create_my_billing_payment_intent",{p_institution_id:summary.institution_id,p_amount_kes:amount,p_payment_method:pay.method,p_invoice_id:selected.id,p_provider:pay.provider||null,p_expires_at:null,p_metadata:{phone:pay.phone.trim()||null,source:"institution_billing_ui"}});
   setLoading(false);
   if(error){setMessage(error.message);return}
   setSelected(null);
