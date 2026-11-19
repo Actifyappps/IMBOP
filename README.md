@@ -893,6 +893,8 @@ When an institution crosses the founding threshold, the transition can be commun
 
 > **Congratulations — your Institution is growing. Your Institution has moved beyond the first 50 IMBOP Onboards. For this transition month, simply pay the discounted minimum of KES 5,000. From next month, your IMBOP plan will follow your Institution's actual number of IMBOP Onboards.**
 
+The **KES 5,000 transition amount is the total discounted invoice for that transition month**. It is not added to the normal plan fee.
+
 Pricing is intended to sell an **institutional outcome**, not a list of software features.
 
 ---
@@ -913,7 +915,140 @@ The commercial model can evolve as real institutional adoption data accumulates.
 
 ---
 
-# 27. Institutional Reporting
+# 27. Billing & Payments
+
+Billing is an integrated IMBOP platform domain. It is not a separate product.
+
+The commercial chain is:
+
+> **PRICING → BILLING ACCOUNT → INVOICE → PAYMENT INTENT → PAYMENT → ALLOCATION → RECEIPT → RECONCILIATION → REFUND → AUDIT**
+
+## Billing customer
+
+The **Institution** is the IMBOP customer.
+
+Individual institution members are not directly billed for ordinary IMBOP participation.
+
+The commercial unit is the number of **IMBOP Onboards**.
+
+## Billing foundation
+
+The platform supports:
+
+- institution billing accounts
+- plan and pricing resolution
+- invoice creation
+- invoice lines
+- full and partial payments
+- payment allocations
+- payment intents
+- payment receipts
+- payment status tracking
+- overdue invoice handling
+- settlement accounts
+- bank-transfer payment references
+- bank statement imports
+- bank statement reconciliation
+- payment refunds
+- billing events and audit history
+- institution-facing billing dashboard
+- SE administration billing controls
+
+## Payment architecture
+
+IMBOP uses a **provider-neutral internal ledger**.
+
+The internal ledger remains authoritative for:
+
+- what the institution owes
+- what has been received
+- what has been allocated
+- what remains outstanding
+- what has been refunded
+- what has been reconciled
+
+External payment providers are adapters around that ledger.
+
+The platform therefore does not treat a provider callback, checkout screen or browser response as the financial source of truth.
+
+## M-PESA
+
+M-PESA is supported through a controlled server-side payment-provider adapter.
+
+The payment flow supports:
+
+**PAYMENT INTENT → STK PUSH → CALLBACK / STATUS QUERY → PROVIDER VALIDATION → LEDGER FINALISATION → RECEIPT**
+
+Provider credentials remain outside the repository.
+
+Live payment activation is configuration-controlled and must not be assumed merely because the adapter exists.
+
+## Bank transfer
+
+Bank transfer is supported through controlled payment references and settlement reconciliation.
+
+The institution receives a payment reference.
+
+A settlement entry can then be matched against:
+
+- payment reference
+- amount
+- institution
+- invoice
+
+Successful reconciliation creates the corresponding internal payment and allocation while preserving an audit trail.
+
+## Refunds
+
+Refunds are treated as controlled financial events.
+
+The system records:
+
+- original payment
+- refund amount
+- refund status
+- provider/reference information
+- reason
+- requesting authority
+- confirmation
+- resulting invoice status
+
+A refund must not silently alter the ledger.
+
+## Financial security rules
+
+The billing layer enforces, at database level where appropriate:
+
+- institution tenancy
+- authenticated role boundaries
+- confirmed-payment requirements
+- payment/invoice institution matching
+- positive allocation amounts
+- invoice over-allocation protection
+- duplicate provider-reference protection
+- payment-intent amount limits
+- payable-invoice checks
+- refund bounds
+- service-only financial mutations
+- auditable financial events
+
+No direct anonymous or ordinary authenticated client write should bypass the controlled billing operations.
+
+## Regulatory boundary
+
+IMBOP is an institutional economic network platform, not a bank or payment processor.
+
+Payment execution remains dependent on appropriately authorised external payment providers and financial institutions.
+
+IMBOP owns the commercial ledger, billing workflow, reconciliation and audit layer required for its platform operation.
+
+Detailed implementation decisions are documented in:
+
+docs/architecture/billing.md
+
+---
+
+# 56. Institutional Reporting
 
 IMBOP should ultimately help institutions understand their economic network.
 
@@ -986,7 +1121,17 @@ Core conceptual entities include:
 - communications
 - audit events
 - pricing plans
-- billing/subscription records
+- billing accounts
+- billing invoices
+- invoice lines
+- payment intents
+- payments
+- payment allocations
+- receipts
+- settlement accounts
+- bank statement imports and entries
+- payment refunds
+- billing events / audit records
 
 The principal tenant boundary is:
 
@@ -1672,15 +1817,15 @@ while keeping the institution in the governance loop.
 
 # 54. Current Status
 
-**Status:** Active build / continuous product development  
+**Status:** Integrated platform / controlled production system  
 **Owner:** Saintsway Equity  
 **Developer / Hosting Partner:** Actify Inc.  
 **Primary repository:** `Actifyappps/IMBOP`  
 **Primary branch:** `main`
 
-The platform should be treated as an evolving controlled system.
+The core institutional lifecycle, publication governance, communications infrastructure and billing foundation are maintained as one controlled platform.
 
-New features should preserve the core model rather than dilute it.
+The billing foundation is designed for controlled rollout. Payment-provider credentials, live provider activation and production financial operations remain configuration- and evidence-dependent.
 
 ---
 
@@ -1719,3 +1864,39 @@ If no, question why it belongs.
 **Institution → Authorised Members → Businesses → Opportunities**
 
 **Know → Discover → Enquire → Connect → Benefit**
+
+---
+
+# 59. Integrated Billing Foundation
+
+The IMBOP billing layer is part of the main platform architecture.
+
+The repository contains the reviewed database migrations, controlled RPCs, provider adapter, institution-facing billing experience, administration controls, reconciliation foundation, refund foundation and structural validation tests required to operate the billing domain.
+
+The intended operational model is:
+
+**GitHub source & migrations → controlled database deployment → Vercel application build/deployment → verified runtime**
+
+GitHub stores the reviewed source and migration definitions. **Supabase is the runtime data store. Vercel builds and serves the application.**
+
+The billing system must remain subject to the same institutional governance principles as the rest of IMBOP:
+
+> **No browser action, provider response or UI state is allowed to become an authority that the database and controlled platform operations should own.**
+
+Before enabling live financial operations, the relevant migrations, authenticated flows, payment-provider sandbox flows, reconciliation paths, refund paths, security controls and production evidence must be verified.
+
+---
+
+## Saintsway Equity
+
+**SAINTSWAY EQUITY**  
+*The Operating Infrastructure for Trusted MSME & Cooperative Ownership*
+
+**IMBOP**  
+*Institutional Economic Network Infrastructure*
+
+**Institution → Authorised Members → Businesses → Opportunities**
+
+**Know → Discover → Enquire → Connect → Benefit**
+
+**Price → Bill → Pay → Reconcile → Report**
