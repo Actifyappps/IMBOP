@@ -94,3 +94,6 @@ footer{margin-top:70px;border-top:1px solid var(--line);background:#fff}.footer-
 .admin-drawer p{color:var(--muted);line-height:1.6}
 .admin-drawer-close{position:absolute;right:18px;top:14px;border:0;background:transparent;font-size:28px;line-height:1;cursor:pointer;color:var(--muted)}
 .admin-drawer .admin-actions{margin-top:24px}
+
+.public-content-summary{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.public-content-summary span{padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--muted)}.public-content-summary b{color:var(--blue);margin-right:4px}.public-content-card{min-height:220px}.public-content-image{display:block;width:100%;height:170px;object-fit:cover;border-radius:12px;margin:14px 0;border:1px solid var(--line)}.public-discovery-hint{color:var(--muted);font-size:.9rem}.institution-space-hero .onboard-metric{margin-top:20px}
+@media(max-width:760px){.public-content-summary{gap:7px}.public-content-summary span{flex:1 1 calc(50% - 7px);text-align:center}.public-content-image{height:150px}}
