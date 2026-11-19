@@ -11,7 +11,7 @@ The existing application remains under `src/app/`. Shared components move from t
 
 ## Why
 
-The product has grown beyond a single-page prototype. IMBOP now contains public discovery, institution spaces, institution administration, SE administration, publication controls, commercial pricing and an emerging communications subsystem.
+The product has grown beyond a single-page prototype. IMBOP now contains public discovery, institution spaces, institution administration, SE administration, publication controls, commercial pricing, communications and an integrated billing subsystem.
 
 Keeping shared components and infrastructure inside `src/app/` couples reusable code to route location and makes future domain growth harder to reason about.
 
@@ -22,7 +22,7 @@ Keeping shared components and infrastructure inside `src/app/` couples reusable 
 - Cleaner imports
 - Easier feature extraction
 - Better test placement
-- Safer future Communications/Pricing development
+- Safer Communications, Pricing and Billing development
 - Repository structure matches the Actify delivery discipline
 
 ### Constraints
@@ -33,4 +33,4 @@ Keeping shared components and infrastructure inside `src/app/` couples reusable 
 
 ## Non-goals
 
-This ADR does not convert IMBOP into a monorepo, microservice architecture or separate application packages. It does not change runtime architecture, tenancy model, RLS, publication authority or commercial rules.
+This ADR does not convert IMBOP into a monorepo, microservice architecture or separate application packages. It does not change runtime architecture, tenancy model, RLS, publication authority or commercial rules. Billing remains a first-class domain while provider execution stays behind controlled adapters and the IMBOP ledger remains authoritative.
