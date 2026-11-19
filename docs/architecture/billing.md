@@ -403,6 +403,6 @@ It provides:
 
 No bank API, bank credential, card processor, Airtel Money production rail or live refund rail is activated by this foundation.
 
-The architectural boundary is deliberate: IMBOP owns the **commercial ledger, billing obligation, payment intent, reconciliation record and audit trail**. A licensed bank/PSP owns the actual movement and settlement of money. Kenya's payment-system framework places payment-service activity under CBK oversight and authorisation requirements, so IMBOP should integrate with authorised providers rather than present itself as a bank or unlicensed payment service. citeturn321902search0turn321902search1turn321902search9
+The architectural boundary is deliberate: IMBOP owns the **commercial ledger, billing obligation, payment intent, reconciliation record and audit trail**. A licensed bank/PSP owns the actual movement and settlement of money. Kenya's payment-system framework places payment-service activity under CBK oversight and authorisation requirements, so IMBOP should integrate with authorised providers rather than present itself as a bank or unlicensed payment service.
 
-Safaricom's Daraja platform remains the provider boundary for M-PESA integration; production activation should follow Safaricom's own onboarding/go-live requirements and sandbox verification. citeturn794092search2turn794092search3
+Safaricom's Daraja platform remains the provider boundary for M-PESA integration; production activation should follow Safaricom's own onboarding/go-live requirements and sandbox verification.
