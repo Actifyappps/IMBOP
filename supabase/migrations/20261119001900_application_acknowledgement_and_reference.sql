@@ -133,3 +133,96 @@ $$;
 
 revoke all on function public.create_public_institution_application(text,text,text,integer,text,text,text,text,text,text,text,text,boolean) from public;
 grant execute on function public.create_public_institution_application(text,text,text,integer,text,text,text,text,text,text,text,text,boolean) to anon, authenticated;
+
+
+-- Member application acknowledgement uses the same communication pipeline.
+alter table public.member_applications
+  add column if not exists application_reference text;
+
+create unique index if not exists member_applications_application_reference_uidx
+  on public.member_applications(application_reference)
+  where application_reference is not null;
+
+drop function if exists private.create_public_member_application_impl(uuid,text,text,text,jsonb);
+
+create or replace function private.create_public_member_application_impl(
+  p_institution_id uuid,
+  p_applicant_name text,
+  p_email text,
+  p_phone text,
+  p_payload jsonb
+)
+returns table(application_id uuid, submission_token uuid, application_reference text, status text)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  a public.member_applications;
+  v_reference text;
+begin
+  if not exists (
+    select 1 from public.institutions i
+    join public.institution_settings s on s.institution_id=i.id
+    where i.id=p_institution_id and i.status='active' and i.deleted_at is null and s.application_enabled=true
+  ) then raise exception 'Institution is not accepting public applications'; end if;
+  if nullif(trim(p_applicant_name),'') is null then raise exception 'Applicant name is required'; end if;
+  if nullif(trim(p_email),'') is null then raise exception 'Email is required'; end if;
+
+  v_reference := 'IMBOP-MEM-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10));
+
+  insert into public.member_applications(
+    institution_id,applicant_name,email,phone,application_payload,status,submitted_at,public_submission_token,application_reference
+  ) values (
+    p_institution_id,trim(p_applicant_name),lower(trim(p_email)),nullif(trim(p_phone),''),
+    coalesce(p_payload,'{}'::jsonb),'SUBMITTED',now(),gen_random_uuid(),v_reference
+  ) returning * into a;
+
+  update public.member_applications set status='PENDING_REVIEW',updated_at=now()
+  where id=a.id returning * into a;
+
+  perform private.create_email_communication(
+    p_institution_id,
+    null,
+    a.email,
+    a.applicant_name,
+    null,
+    'SYSTEM',
+    'MEMBER_APPLICATION',
+    'MEMBER_APPLICATION_RECEIVED',
+    'IMBOP member application received — ' || a.application_reference,
+    'Thank you. Your application to join your Institution on IMBOP has been received. Application Reference: ' ||
+      a.application_reference || '. Status: PENDING REVIEW by your Institution. Your Institution will review the application and decide whether to publish your member record. Application ≠ Publication.',
+    'member_application',
+    a.id,
+    jsonb_build_object(
+      'application_reference',a.application_reference,
+      'status','PENDING_REVIEW',
+      'institution_id',p_institution_id
+    )
+  );
+
+  return query select a.id,a.public_submission_token,a.application_reference,a.status;
+end;
+$$;
+
+drop function if exists public.create_public_member_application(uuid,text,text,text,jsonb);
+
+create or replace function public.create_public_member_application(
+  p_institution_id uuid,
+  p_applicant_name text,
+  p_email text,
+  p_phone text,
+  p_payload jsonb
+)
+returns table(application_id uuid, submission_token uuid, application_reference text, status text)
+language sql
+set search_path = ''
+as $$
+  select * from private.create_public_member_application_impl(
+    p_institution_id,p_applicant_name,p_email,p_phone,p_payload
+  );
+$$;
+
+revoke all on function public.create_public_member_application(uuid,text,text,text,jsonb) from public;
+grant execute on function public.create_public_member_application(uuid,text,text,text,jsonb) to anon, authenticated;
