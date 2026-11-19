@@ -194,9 +194,10 @@ begin
   values(p_payment_id,v_payment.institution_id,p_amount_kes,p_reason)
   returning id into v_id;
 
-  insert into public.billing_events(institution_id,event_type,entity_type,entity_id,payload)
-  values(v_payment.institution_id,'PAYMENT_REFUND_REQUESTED','PAYMENT',p_payment_id,
-    jsonb_build_object('refund_id',v_id,'amount_kes',p_amount_kes,'reason',p_reason));
+  insert into public.billing_events(institution_id,event_type,payment_id,metadata,idempotency_key)
+  values(v_payment.institution_id,'PAYMENT_REFUND_REQUESTED',p_payment_id,
+    jsonb_build_object('refund_id',v_id,'amount_kes',p_amount_kes,'reason',p_reason),
+    'refund-request:'||v_id::text);
 
   return v_id;
 end;
@@ -245,10 +246,12 @@ begin
     update public.billing_payments set status='REFUNDED', updated_at=now() where id=v_refund.payment_id;
   end if;
 
-  insert into public.billing_events(institution_id,event_type,entity_type,entity_id,payload)
-  values(v_refund.institution_id,'PAYMENT_REFUND_CONFIRMED','PAYMENT',v_refund.payment_id,
+  insert into public.billing_events(institution_id,event_type,payment_id,metadata,idempotency_key)
+  values(v_refund.institution_id,'PAYMENT_REFUND_CONFIRMED',v_refund.payment_id,
     jsonb_build_object('refund_id',p_refund_id,'amount_kes',v_refund.amount_kes,
-                       'provider',p_provider,'provider_reference',p_provider_reference));
+                       'provider',p_provider,'provider_reference',p_provider_reference),
+    'refund-confirm:'||p_refund_id::text)
+  on conflict (idempotency_key) do nothing;
 
   return jsonb_build_object('ok',true,'status','CONFIRMED','refund_id',p_refund_id);
 end;
