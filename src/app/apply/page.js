@@ -4,8 +4,8 @@ import Nav from "../../components/Nav";
 import Footer from "../../components/Footer";
 import {supabase} from "../../lib/supabase";
 
-const empty={name:"",email:"",phone:"",business:"",description:"",sector:"",location:""};
-const instEmpty={institution_name:"",legal_name:"",institution_type:"",contact_name:"",contact_email:"",contact_phone:"",membership_size:"",website:"",location:"",description:""};
+const empty={name:"",email:"",phone:"",business:"",description:"",sector:"",value_chain:"",location:"",offer:"",need:""};
+const instEmpty={institution_name:"",legal_name:"",registration_number:"",registration_authority:"",institution_type:"",contact_name:"",contact_role:"",contact_email:"",contact_phone:"",membership_size:"",website:"",county:"",location:"",description:"",authorised:true};
 
 export default function Apply(){
   const [type,setType]=useState("");
@@ -54,7 +54,7 @@ export default function Apply(){
       membership_size:institution.membership_size===""?null:Number(institution.membership_size),
       website:institution.website.trim()||null, location:institution.location.trim()||null,
       description:institution.description.trim()||null,
-      application_payload:{source:"PUBLIC_IMBOP_APPLICATION",applicant_type:"INSTITUTION"},
+      application_payload:{source:"PUBLIC_IMBOP_APPLICATION",applicant_type:"INSTITUTION",registration_number:institution.registration_number,registration_authority:institution.registration_authority,contact_role:institution.contact_role,county:institution.county,authorised_applicant:institution.authorised},
       status:"SUBMITTED"
     };
     const {data,error}=await supabase.rpc("create_public_institution_application",{
@@ -121,15 +121,15 @@ export default function Apply(){
         </div>
         <div className="grid">
           <div><label className="label">CONTACT NAME</label><input className="input" value={institution.contact_name} onChange={e=>setInstitutionField("contact_name",e.target.value)} required/></div>
-          <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
+          <div><label className="label">CONTACT ROLE / POSITION</label><input className="input" value={institution.contact_role} onChange={e=>setInstitutionField("contact_role",e.target.value)} placeholder="e.g. Chairperson, Secretary, Manager" required/></div>\n          <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
         </div>
         <div className="grid">
           <div><label className="label">CONTACT PHONE</label><input className="input" value={institution.contact_phone} onChange={e=>setInstitutionField("contact_phone",e.target.value)}/></div>
           <div><label className="label">WEBSITE</label><input className="input" type="url" value={institution.website} onChange={e=>setInstitutionField("website",e.target.value)}/></div>
         </div>
-        <label className="label">LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} required/>
+        <label className="label">COUNTY</label><input className="input" value={institution.county} onChange={e=>setInstitutionField("county",e.target.value)} required/>\n        <label className="label">LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} required/>
         <label className="label">ABOUT THE INSTITUTION</label><textarea className="textarea" value={institution.description} onChange={e=>setInstitutionField("description",e.target.value)} required/>
-        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div><button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
+        <label className="label" style={{display:"flex",gap:8,alignItems:"center"}}><input type="checkbox" checked={institution.authorised} onChange={e=>setInstitutionField("authorised",e.target.checked)}/> I am authorised to submit this application on behalf of this institution.</label>\n        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div><button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
       </form>}
 
       {msg && <div className="notice" style={{marginTop:20}}>{msg}</div>}
