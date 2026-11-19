@@ -212,3 +212,57 @@ $$;
 
 revoke execute on function public.get_my_billing_receipts(uuid) from anon;
 grant execute on function public.get_my_billing_receipts(uuid) to authenticated;
+
+-- Payment channels supported by the product-facing payment flow.
+alter table public.billing_payments
+  drop constraint if exists billing_payments_method_check;
+
+alter table public.billing_payments
+  add constraint billing_payments_method_check
+  check (payment_method in ('MANUAL','BANK_TRANSFER','MPESA','AIRTEL_MONEY','CARD','OTHER'));
+
+create or replace function private.issue_billing_receipt_for_payment()
+returns trigger
+language plpgsql
+security definer
+set search_path to ''
+as $function$
+declare
+  v_receipt_id uuid;
+  v_receipt_number text;
+begin
+  if new.status <> 'CONFIRMED' then
+    return new;
+  end if;
+
+  if exists (select 1 from public.billing_receipts where payment_id=new.id) then
+    return new;
+  end if;
+
+  v_receipt_number := 'IMBOP-RCP-' || to_char(current_date,'YYYY') || '-' ||
+    lpad(nextval('public.imbop_receipt_number_seq')::text,6,'0');
+
+  insert into public.billing_receipts(
+    institution_id,payment_id,receipt_number,amount_kes,notes
+  ) values (
+    new.institution_id,new.id,v_receipt_number,new.amount_kes,'System-issued receipt for confirmed payment'
+  )
+  returning id into v_receipt_id;
+
+  insert into public.billing_events(
+    institution_id,payment_id,event_type,metadata,idempotency_key
+  ) values (
+    new.institution_id,new.id,'PAYMENT_RECEIPT_ISSUED',
+    jsonb_build_object('receipt_id',v_receipt_id,'receipt_number',v_receipt_number),
+    'receipt:'||new.id::text
+  ) on conflict (idempotency_key) do nothing;
+
+  return new;
+end;
+$function$;
+
+drop trigger if exists billing_payment_receipt_after_confirm on public.billing_payments;
+create trigger billing_payment_receipt_after_confirm
+after insert or update of status on public.billing_payments
+for each row
+execute function private.issue_billing_receipt_for_payment();
