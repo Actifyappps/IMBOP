@@ -120,6 +120,15 @@ begin
   end if;
   if p_amount_kes <= 0 then raise exception 'INVALID_AMOUNT'; end if;
 
+  select e.id into v_id
+  from public.billing_bank_statement_entries e
+  where e.settlement_account_id=p_settlement_account_id
+    and e.external_reference is not null
+    and e.external_reference=p_external_reference
+  limit 1;
+
+  if v_id is not null then return v_id; end if;
+
   -- A statement entry must belong to a real import batch.
   insert into public.billing_bank_statement_imports(settlement_account_id,source_type,status,metadata)
   values(p_settlement_account_id,'MANUAL','PROCESSING',jsonb_build_object('auto_created',true))
@@ -226,9 +235,12 @@ begin
          provider=coalesce(p_provider,provider),confirmed_at=now(),updated_at=now()
    where id=p_refund_id;
 
-  if v_refund.amount_kes = (
+  if (
     select coalesce(sum(amount_kes),0) from public.billing_payment_refunds
     where payment_id=v_refund.payment_id and status='CONFIRMED'
+  ) = (
+    select coalesce(sum(amount_kes),0) from public.billing_payment_allocations
+    where payment_id=v_refund.payment_id
   ) then
     update public.billing_payments set status='REFUNDED', updated_at=now() where id=v_refund.payment_id;
   end if;
@@ -271,8 +283,8 @@ begin
     'imbop_onboards',(select count(*) from public.memberships m where m.institution_id=b.institution_id and m.status='active'),
     'outstanding_kes',coalesce((
       select sum(i.total_kes
-        - coalesce((select sum(a.amount_kes) from public.billing_payment_allocations a join public.billing_payments p on p.id=a.payment_id where a.invoice_id=i.id and p.status='CONFIRMED'),0)
-        + coalesce((select sum(r.amount_kes) from public.billing_payment_refunds r join public.billing_payments p on p.id=r.payment_id where p.status='CONFIRMED' and r.status='CONFIRMED' and exists(select 1 from public.billing_payment_allocations a where a.payment_id=p.id and a.invoice_id=i.id)),0))
+        - coalesce((select sum(a.amount_kes) from public.billing_payment_allocations a join public.billing_payments p on p.id=a.payment_id where a.invoice_id=i.id and (p.status='CONFIRMED' or p.status='REFUNDED')),0)
+        + coalesce((select sum(r.amount_kes) from public.billing_payment_refunds r join public.billing_payments p on p.id=r.payment_id where (p.status='CONFIRMED' or p.status='REFUNDED') and r.status='CONFIRMED' and exists(select 1 from public.billing_payment_allocations a where a.payment_id=p.id and a.invoice_id=i.id)),0))
       from public.billing_invoices i
       where i.institution_id=b.institution_id and i.status in ('ISSUED','PARTIALLY_PAID','OVERDUE')
     ),0),
@@ -282,8 +294,8 @@ begin
         'period_start',i.period_start,'period_end',i.period_end,'due_date',i.due_date,
         'total_kes',i.total_kes,'status',i.status,
         'outstanding_kes',i.total_kes
-          - coalesce((select sum(a.amount_kes) from public.billing_payment_allocations a join public.billing_payments p on p.id=a.payment_id where a.invoice_id=i.id and p.status='CONFIRMED'),0)
-          + coalesce((select sum(r.amount_kes) from public.billing_payment_refunds r join public.billing_payments p on p.id=r.payment_id where p.status='CONFIRMED' and r.status='CONFIRMED' and exists(select 1 from public.billing_payment_allocations a where a.payment_id=p.id and a.invoice_id=i.id)),0)
+          - coalesce((select sum(a.amount_kes) from public.billing_payment_allocations a join public.billing_payments p on p.id=a.payment_id where a.invoice_id=i.id and (p.status='CONFIRMED' or p.status='REFUNDED')),0)
+          + coalesce((select sum(r.amount_kes) from public.billing_payment_refunds r join public.billing_payments p on p.id=r.payment_id where (p.status='CONFIRMED' or p.status='REFUNDED') and r.status='CONFIRMED' and exists(select 1 from public.billing_payment_allocations a where a.payment_id=p.id and a.invoice_id=i.id)),0)
       )
       from public.billing_invoices i where i.institution_id=b.institution_id order by i.issued_at desc,i.created_at desc limit 1
     )
