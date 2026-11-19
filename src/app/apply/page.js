@@ -106,7 +106,10 @@ export default function Apply(){
     }
 
     setBusy(false);
-    window.location.href="/apply/institution-confirmation";
+    const applicationReference=application?.application_reference;
+    window.location.href=applicationReference
+      ? "/apply/institution-confirmation?reference="+encodeURIComponent(applicationReference)
+      : "/apply/institution-confirmation";
   }
 
   return <><Nav/><main className="wrap">
