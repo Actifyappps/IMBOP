@@ -13,7 +13,7 @@ export default function Privacy() {
           <span>Institutional Members Business &amp; Opportunities Platform</span>
         </div>
         <div className="card">
-          <div className="notice">DRAFT: owner approved, legal validation pending</div>
+          <div className="notice">LEGAL REVIEW PENDING</div>
           <h1 style={{ margin: "12px 0 8px" }}>IMBOP Privacy Notice</h1>
           <p>
             IMBOP is a Saintsway Equity (SE) platform. Actify Inc. is engaged by SE as the technology development,
