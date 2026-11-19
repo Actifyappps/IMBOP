@@ -23,16 +23,19 @@ export default function AdminConsole({section="dashboard"}) {
   const [drawerText, setDrawerText] = useState("");
   const [drawerForm, setDrawerForm] = useState({email:"",first:"",last:""});
   const [pricingDraft, setPricingDraft] = useState(null);
+  const [billingAccounts, setBillingAccounts] = useState([]);
+  const [billingDraft, setBillingDraft] = useState({institution_id:"",period_start:"",period_end:"",due_date:"",plan_code:"",notes:"",amount_kes:"",payment_method:"MANUAL",provider:"",provider_reference:"",invoice_id:"",idempotency_key:""});
 
   async function loadData() {
     setLoading(true); setMessage("");
-    const [a, i, o, p, cr, ct] = await Promise.all([
+    const [a, i, o, p, cr, ct, ba] = await Promise.all([
       supabase.from("institution_applications").select("*").in("status", REVIEWABLE).order("submitted_at", {ascending:true}),
       supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true}),
       supabase.rpc("platform_institution_onboarding_overview"),
       supabase.rpc("get_platform_pricing_plans"),
       supabase.rpc("get_platform_communication_recipients"),
-      supabase.rpc("get_platform_communication_templates")
+      supabase.rpc("get_platform_communication_templates"),
+      supabase.rpc("platform_get_billing_accounts",{p_limit:500,p_offset:0})
     ]);
     if (a.error) setMessage(a.error.message);
     if (i.error) setMessage((p)=>p || i.error.message);
@@ -40,8 +43,9 @@ export default function AdminConsole({section="dashboard"}) {
     if (p.error) setMessage((m)=>m || p.error.message);
     if (cr.error) setMessage((m)=>m || cr.error.message);
     if (ct.error) setMessage((m)=>m || ct.error.message);
+    if (ba.error) setMessage((m)=>m || ba.error.message);
     setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setPricingPlans(p.data || []);
-    setCommRecipients(cr.data || []); setCommTemplates(ct.data || []); setLoading(false);
+    setCommRecipients(cr.data || []); setCommTemplates(ct.data || []); setBillingAccounts(ba.data || []); setLoading(false);
   }
   useEffect(()=>{loadData()},[]);
   useEffect(()=>{
@@ -157,6 +161,8 @@ export default function AdminConsole({section="dashboard"}) {
     setDrawerText(payload.text || "");
     if(type==="assign-admin") setDrawerForm({email:"",first:"",last:""});
     if(type==="pricing") setPricingDraft(payload.plan);
+    if(type==="billing-invoice") setBillingDraft({institution_id:payload.institution_id||"",period_start:payload.period_start||new Date().toISOString().slice(0,10),period_end:payload.period_end||new Date(Date.now()+30*86400000).toISOString().slice(0,10),due_date:payload.due_date||new Date(Date.now()+37*86400000).toISOString().slice(0,10),plan_code:"",notes:"",amount_kes:"",payment_method:"MANUAL",provider:"",provider_reference:"",invoice_id:"",idempotency_key:""});
+    if(type==="billing-payment") setBillingDraft({institution_id:payload.institution_id||"",period_start:"",period_end:"",due_date:"",plan_code:"",notes:"",amount_kes:"",payment_method:"MANUAL",provider:"",provider_reference:"",invoice_id:"",idempotency_key:""});
   }
 
   if(loading)return <><Nav authenticated/><main className="wrap"><div className="card">Loading platform administration…</div></main><Footer/></>;
@@ -172,6 +178,7 @@ export default function AdminConsole({section="dashboard"}) {
         <a className={section==="lifecycle"?"active":""} href="/admin/lifecycle">LIFECYCLE <span>{institutions.length}</span></a>
         <a className={section==="communications"?"active":""} href="/admin/communications">COMMUNICATIONS</a>
         <a className={section==="pricing"?"active":""} href="/admin/pricing">PRICING</a>
+        <a className={section==="billing"?"active":""} href="/admin/billing">BILLING</a>
       </div>
     </div>
     {message&&<div className="notice admin-message" role="status">{message}</div>}
@@ -188,6 +195,7 @@ export default function AdminConsole({section="dashboard"}) {
           <a className="admin-command-card" href="/admin/lifecycle"><div className="eyebrow">03 · CONTROL</div><h3>Institution Lifecycle</h3><p>Manage active and existing institutions through their operating lifecycle.</p><strong>{institutions.length} institutions →</strong></a>
           <a className="admin-command-card" href="/admin/communications"><div className="eyebrow">04 · COMMUNICATIONS CENTRE</div><h3>SE Admin Communications</h3><p>Send controlled administrative communications and process queued email.</p><strong>{commRecipients.length} institution admins →</strong></a>
           <a className="admin-command-card admin-command-card-secondary" href="/admin/pricing"><div className="eyebrow">05 · COMMERCIAL CONTROL</div><h3>IMBOP Pricing &amp; Plans</h3><p>Configure the numbers-based institutional pricing model and transition rules.</p><strong>{pricingPlans.length} plans →</strong></a>
+          <a className="admin-command-card admin-command-card-secondary" href="/admin/billing"><div className="eyebrow">06 · BILLING OPERATIONS</div><h3>IMBOP Billing</h3><p>Issue invoices, record payments, track balances and preserve the institutional billing audit trail.</p><strong>{billingAccounts.length} billing accounts →</strong></a>
         </div>
       </section>
     )}
@@ -250,6 +258,29 @@ export default function AdminConsole({section="dashboard"}) {
     </section>
     )}
 
+
+    {section === "billing" && (
+    <section className="admin-section">
+      <div className="section-heading"><div><div className="eyebrow">BILLING OPERATIONS</div><h2>IMBOP Billing</h2></div><span className="count-badge">{billingAccounts.length} billing accounts</span></div>
+      <div className="card pricing-admin-note"><b>SE is the billing authority.</b> Pricing defines the commercial plan; billing records the institution's obligation and settlement. Individual Institution Members are not billed.</div>
+      {!billingAccounts.length?<div className="card empty-state">No institution billing accounts are currently available.</div>:<div className="admin-grid">{billingAccounts.map(b=><article className="admin-card" key={b.institution_id}>
+        <div className="admin-card-head"><div><div className="eyebrow">INSTITUTION BILLING</div><h3>{b.institution_name}</h3></div><span className="status-badge">{b.billing_status}</span></div>
+        <div className="detail-grid">
+          <div><span>Plan</span><strong>{b.plan_code}</strong></div>
+          <div><span>IMBOP Onboards</span><strong>{Number(b.current_onboards||0).toLocaleString("en-KE")}</strong></div>
+          <div><span>Monthly fee</span><strong>{b.monthly_fee_kes==null?"NEGOTIATED":"KES "+Number(b.monthly_fee_kes).toLocaleString("en-KE")}</strong></div>
+          <div><span>Outstanding</span><strong>KES {Number(b.outstanding_kes||0).toLocaleString("en-KE")}</strong></div>
+          <div><span>Compliance</span><strong>{b.compliance_status}</strong></div>
+          <div><span>Latest invoice</span><strong>{b.latest_invoice_status||"NONE"}</strong></div>
+        </div>
+        <div className="admin-actions">
+          <button className="admin-btn admin-btn-primary" onClick={()=>openDrawer("billing-invoice",{institution_id:b.institution_id,title:"Issue IMBOP invoice"})}>ISSUE INVOICE</button>
+          <button className="admin-btn" onClick={()=>openDrawer("billing-payment",{institution_id:b.institution_id,title:"Record billing payment"})}>RECORD PAYMENT</button>
+        </div>
+      </article>)}</div>}
+    </section>
+    )}
+
     {section === "communications" && (
     <section className="admin-section">
       <div className="section-heading"><div><div className="eyebrow">COMMUNICATIONS CENTRE</div><h2>SE Admin Communications</h2></div><span className="count-badge">{commRecipients.length} institution admins</span></div>
@@ -307,6 +338,30 @@ export default function AdminConsole({section="dashboard"}) {
           <div><label className="label">LAST NAME</label><input className="input" value={drawerForm.last} onChange={e=>setDrawerForm(f=>({...f,last:e.target.value}))}/></div>
         </div>}
         {drawer.type==="lifecycle" && <><p>{drawer.action} is a controlled lifecycle action and will be recorded in the audit trail.</p><label className="label">REASON</label><textarea className="textarea" rows="5" value={drawerText} onChange={e=>setDrawerText(e.target.value)} /></>}
+
+        {drawer.type==="billing-invoice" && <div className="grid">
+          <div><label className="label">INSTITUTION</label><select className="input" value={billingDraft.institution_id} onChange={e=>setBillingDraft(d=>({...d,institution_id:e.target.value}))}>
+            <option value="">Select institution</option>{billingAccounts.map(b=><option key={b.institution_id} value={b.institution_id}>{b.institution_name}</option>)}
+          </select></div>
+          <div><label className="label">PLAN</label><input className="input" value={(billingAccounts.find(b=>b.institution_id===billingDraft.institution_id)?.plan_code)||"Resolved from institution billing account"} readOnly/></div>
+          <div><label className="label">PERIOD START</label><input className="input" type="date" value={billingDraft.period_start} onChange={e=>setBillingDraft(d=>({...d,period_start:e.target.value}))}/></div>
+          <div><label className="label">PERIOD END</label><input className="input" type="date" value={billingDraft.period_end} onChange={e=>setBillingDraft(d=>({...d,period_end:e.target.value}))}/></div>
+          <div><label className="label">DUE DATE</label><input className="input" type="date" value={billingDraft.due_date} onChange={e=>setBillingDraft(d=>({...d,due_date:e.target.value}))}/></div>
+          <div style={{gridColumn:"1 / -1"}}><label className="label">NOTES</label><textarea className="textarea" value={billingDraft.notes} onChange={e=>setBillingDraft(d=>({...d,notes:e.target.value}))}/></div>
+        </div>}
+        {drawer.type==="billing-payment" && <div className="grid">
+          <div><label className="label">INSTITUTION</label><select className="input" value={billingDraft.institution_id} onChange={e=>setBillingDraft(d=>({...d,institution_id:e.target.value}))}>
+            <option value="">Select institution</option>{billingAccounts.map(b=><option key={b.institution_id} value={b.institution_id}>{b.institution_name}</option>)}
+          </select></div>
+          <div><label className="label">AMOUNT (KES)</label><input className="input" type="number" min="0.01" step="0.01" value={billingDraft.amount_kes} onChange={e=>setBillingDraft(d=>({...d,amount_kes:e.target.value}))}/></div>
+          <div><label className="label">PAYMENT METHOD</label><select className="input" value={billingDraft.payment_method} onChange={e=>setBillingDraft(d=>({...d,payment_method:e.target.value}))}><option>MANUAL</option><option>BANK_TRANSFER</option><option>MPESA</option><option>CARD</option><option>OTHER</option></select></div>
+          <div><label className="label">INVOICE ID (OPTIONAL)</label><input className="input" value={billingDraft.invoice_id} onChange={e=>setBillingDraft(d=>({...d,invoice_id:e.target.value}))}/></div>
+          <div><label className="label">PROVIDER</label><input className="input" value={billingDraft.provider} onChange={e=>setBillingDraft(d=>({...d,provider:e.target.value}))}/></div>
+          <div><label className="label">PROVIDER REFERENCE</label><input className="input" value={billingDraft.provider_reference} onChange={e=>setBillingDraft(d=>({...d,provider_reference:e.target.value}))}/></div>
+          <div><label className="label">IDEMPOTENCY KEY</label><input className="input" value={billingDraft.idempotency_key} onChange={e=>setBillingDraft(d=>({...d,idempotency_key:e.target.value}))}/></div>
+          <div style={{gridColumn:"1 / -1"}}><label className="label">NOTES</label><textarea className="textarea" value={billingDraft.notes} onChange={e=>setBillingDraft(d=>({...d,notes:e.target.value}))}/></div>
+        </div>}
+
         {drawer.type==="pricing" && pricingDraft && <div className="grid">
           <div><label className="label">PLAN NAME</label><input className="input" value={pricingDraft.plan_name||""} onChange={e=>setPricingDraft(d=>({...d,plan_name:e.target.value}))}/></div>
           <div><label className="label">MONTHLY FEE (KES)</label><input className="input" type="number" min="0" value={pricingDraft.monthly_fee_kes??""} onChange={e=>setPricingDraft(d=>({...d,monthly_fee_kes:e.target.value===""?null:Number(e.target.value)}))}/></div>
@@ -322,6 +377,24 @@ export default function AdminConsole({section="dashboard"}) {
             else if(drawer.type==="confirm-config") configureInstitution(drawer.id);
             else if(drawer.type==="assign-admin") assignAdmin(drawer.id,drawerForm);
             else if(drawer.type==="lifecycle") manageInstitution(drawer.id,drawer.action,drawerText);
+
+            else if(drawer.type==="billing-invoice") (async()=>{
+              const d=billingDraft;
+              if(!d.institution_id||!d.period_start||!d.period_end||!d.due_date)return setMessage("Institution and billing dates are required.");
+              setWorking("billing-invoice");setMessage("");
+              const v=await supabase.rpc("platform_create_invoice",{p_institution_id:d.institution_id,p_period_start:d.period_start,p_period_end:d.period_end,p_due_date:d.due_date,p_plan_code:d.plan_code||null,p_notes:d.notes||null});
+              if(v.error){setMessage(v.error.message);setWorking(null);return}
+              setMessage("Invoice issued and billing event recorded.");setDrawer(null);await loadData();setWorking(null);
+            })();
+            else if(drawer.type==="billing-payment") (async()=>{
+              const d=billingDraft;
+              if(!d.institution_id||!d.amount_kes||Number(d.amount_kes)<=0)return setMessage("Institution and a positive payment amount are required.");
+              setWorking("billing-payment");setMessage("");
+              const v=await supabase.rpc("platform_record_billing_payment",{p_institution_id:d.institution_id,p_amount_kes:Number(d.amount_kes),p_payment_method:d.payment_method,p_provider:d.provider||null,p_provider_reference:d.provider_reference||null,p_invoice_id:d.invoice_id||null,p_received_at:new Date().toISOString(),p_idempotency_key:d.idempotency_key||null,p_notes:d.notes||null});
+              if(v.error){setMessage(v.error.message);setWorking(null);return}
+              setMessage("Payment recorded, allocated and audited.");setDrawer(null);await loadData();setWorking(null);
+            })();
+
             else if(drawer.type==="pricing") (async()=>{
               const p=pricingDraft;
               if(!p?.plan_name?.trim()) return setMessage("Plan name is required.");

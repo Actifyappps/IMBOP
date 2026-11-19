@@ -1719,3 +1719,45 @@ If no, question why it belongs.
 **Institution → Authorised Members → Businesses → Opportunities**
 
 **Know → Discover → Enquire → Connect → Benefit**
+
+
+# Billing System Development Branch
+
+This branch introduces the next controlled commercial layer of IMBOP: **institutional billing infrastructure**.
+
+The billing model is deliberately separated into:
+
+**PRICING → BILLING ACCOUNT → INVOICE → PAYMENT → ALLOCATION → RECONCILIATION → COMMUNICATION → AUDIT**
+
+### Billing principles
+
+- The **Institution** is the IMBOP customer.
+- Individual institution members are not billed for ordinary IMBOP participation.
+- Pricing defines the commercial rule; billing records the obligation.
+- An invoice is a period-specific statement of what the institution owes.
+- A payment records money received; it does not by itself determine how that money is allocated.
+- Payment allocations connect money received to invoices.
+- Billing events preserve an auditable operational history.
+- The first 50 IMBOP Onboards remain free.
+- The approved first transition month uses a **KES 5,000 discounted minimum**, not an additional fee on top of the normal plan.
+- Payment-provider integration is intentionally separated from the internal billing ledger.
+
+### Billing foundation introduced on this branch
+
+- billing_invoices
+- billing_invoice_lines
+- billing_payments
+- billing_payment_allocations
+- billing_events
+- controlled institution billing summary RPC
+- controlled SE invoice creation RPC
+- controlled SE payment recording RPC
+- overdue invoice operation
+- SE billing-account reporting
+- /admin/billing administration surface
+
+Detailed design is documented in:
+
+docs/architecture/billing.md
+
+The branch is intended to prove the billing model and internal ledger before real payment rails are connected.
