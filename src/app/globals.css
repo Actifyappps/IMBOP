@@ -36,8 +36,8 @@ body{font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;text-ren
 .hero-brand{font-size:clamp(2.9rem,7vw,4.8rem);line-height:.98;font-weight:800;letter-spacing:-.045em;color:var(--blue);margin-bottom:6px}
 .hero h1,.admin-hero h1,.plans-hero h1,.institution-space-hero h1{font-weight:700;color:var(--blue2)}
 .hero h1{font-size:clamp(2rem,4vw,3.1rem);line-height:1.1;letter-spacing:-.03em}
-.hero-subtitle{font-size:clamp(1rem,1.8vw,1.2rem);line-height:1.5;font-weight:500;color:var(--muted);margin-top:6px}
-.hero-intro,.hero p{font-size:1rem;line-height:1.65;color:var(--ink)}
+.hero-subtitle{font-size:clamp(1rem,1.8vw,1.2rem);line-height:1.15;font-weight:500;color:var(--muted);margin:0 0 2px}
+.hero-intro,.hero p{font-size:1rem;line-height:1.65;color:var(--ink)}.hero-subtitle + .hero-intro{margin-top:0}
 .hero h2,.section-heading h2,.admin-section-heading h2{font-size:clamp(1.25rem,2.4vw,1.5rem);line-height:1.25;font-weight:700;color:var(--blue2);letter-spacing:-.015em}
 .hero h2{font-size:clamp(1.3rem,2.6vw,1.75rem)}
 .card h2,.plan-card h2,.institution-card h2,.communication-head h2,.admin-drawer h2{font-size:1.1rem;line-height:1.3;font-weight:700;color:var(--blue2)}
