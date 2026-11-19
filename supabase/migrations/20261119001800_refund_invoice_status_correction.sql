@@ -142,9 +142,9 @@ begin
   end if;
 
   insert into public.billing_events(
-    institution_id,event_type,entity_type,entity_id,payload
+    institution_id,event_type,payment_id,metadata,idempotency_key
   ) values(
-    v_refund.institution_id,'PAYMENT_REFUND_CONFIRMED','PAYMENT',v_refund.payment_id,
+    v_refund.institution_id,'PAYMENT_REFUND_CONFIRMED',v_refund.payment_id,
     jsonb_build_object(
       'refund_id',p_refund_id,
       'amount_kes',v_refund.amount_kes,
@@ -152,8 +152,9 @@ begin
       'provider_reference',p_provider_reference,
       'invoice_id',v_invoice_id,
       'invoice_status',v_invoice_status
-    )
-  );
+    ),
+    'refund-confirm:'||p_refund_id::text
+  ) on conflict (idempotency_key) do nothing;
 
   return jsonb_build_object(
     'ok',true,
