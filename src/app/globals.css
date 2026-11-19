@@ -69,3 +69,8 @@ p,.admin-description,.admin-contact,.communication-body,.institution-card p,.pla
   .admin-card h3,.admin-command-card h3{font-size:1rem}
   .admin-description,.admin-contact,.communication-body,.institution-card p,.plan-card p{font-size:.9rem}
 }
+
+/* Approved IMBOP logo: replace the former placeholder mark. */
+.brand-logo{width:52px;height:52px;display:grid;place-items:center;flex:0 0 auto}
+.brand-logo img{display:block;width:100%;height:100%;object-fit:contain}
+@media(max-width:760px){.brand-logo{width:44px;height:44px}}
