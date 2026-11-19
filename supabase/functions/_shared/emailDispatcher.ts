@@ -13,7 +13,7 @@ function escapeHtml(value: string) {
 }
 
 function htmlFromText(value: string) {
-  return escapeHtml(value).replaceAll("\\n", "<br />");
+  return escapeHtml(value).replaceAll("\n", "<br />");
 }
 
 type RpcClient = {
