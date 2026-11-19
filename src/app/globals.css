@@ -74,3 +74,16 @@ p,.admin-description,.admin-contact,.communication-body,.institution-card p,.pla
 .brand-logo{width:52px;height:52px;display:grid;place-items:center;flex:0 0 auto}
 .brand-logo img{display:block;width:100%;height:100%;object-fit:contain}
 @media(max-width:760px){.brand-logo{width:44px;height:44px}}
+
+/* Visual seating polish: let the approved mark carry the brand in the hero and footer without adding decoration. */
+.hero-brand{display:flex;align-items:center;justify-content:center;height:148px;margin:0 0 20px}
+.hero-brand img{display:block;width:148px;height:148px;object-fit:contain}
+.footer-brand{display:flex;align-items:center;gap:9px}
+.footer-brand img{display:block;width:28px;height:28px;object-fit:contain}
+.notice{background:var(--soft-gold);border-color:#ead7a0}
+@media(max-width:760px){
+  .hero-brand{height:112px;margin-bottom:18px}
+  .hero-brand img{width:112px;height:112px}
+  .footer-brand{gap:8px}
+  .footer-brand img{width:24px;height:24px}
+}
