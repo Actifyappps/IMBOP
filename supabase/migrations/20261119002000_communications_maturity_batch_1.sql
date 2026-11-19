@@ -14,6 +14,28 @@ alter table public.communication_deliveries
   add column if not exists provider_message_id text,
   add column if not exists provider_response jsonb not null default '{}'::jsonb;
 
+-- Seed deterministic keys for the existing acknowledgement records before
+-- creating the unique constraint. If duplicate legacy rows exist, preserve the
+-- oldest record as the authoritative event and leave later duplicates unkeyed.
+with ranked as (
+  select id,
+         row_number() over (
+           partition by reference_type, reference_id, event_type
+           order by created_at asc, id asc
+         ) as rn
+    from public.communication_records
+   where event_type in ('INSTITUTION_APPLICATION_RECEIVED','MEMBER_APPLICATION_RECEIVED')
+     and reference_id is not null
+)
+update public.communication_records c
+   set idempotency_key=case
+     when r.rn=1 then c.reference_type || ':' || c.reference_id::text || ':RECEIVED'
+     else null
+   end
+  from ranked r
+ where c.id=r.id
+   and c.idempotency_key is null;
+
 create unique index if not exists communication_records_idempotency_uidx
   on public.communication_records(idempotency_key)
   where idempotency_key is not null;
@@ -79,8 +101,15 @@ begin
     v_idempotency_key, v_template_key, v_template_version
   )
   on conflict (idempotency_key) where idempotency_key is not null
-  do update set id=id
+  do nothing
   returning id into v_communication_id;
+
+  if v_communication_id is null and v_idempotency_key is not null then
+    select id into v_communication_id
+      from public.communication_records
+     where idempotency_key=v_idempotency_key
+     limit 1;
+  end if;
 
   insert into public.communication_deliveries(communication_id,channel,status)
   values(v_communication_id,'EMAIL','QUEUED')
@@ -269,19 +298,3 @@ begin
 end;
 $function$;
 
--- Explicitly mark the application acknowledgement event as idempotent.
--- Existing calls without an explicit key remain valid; this wrapper uses a
--- deterministic key for the receipt event only.
-update public.communication_records
-   set idempotency_key='institution_application:' || reference_id::text || ':RECEIVED'
- where reference_type='institution_application'
-   and event_type='INSTITUTION_APPLICATION_RECEIVED'
-   and reference_id is not null
-   and idempotency_key is null;
-
-update public.communication_records
-   set idempotency_key='member_application:' || reference_id::text || ':RECEIVED'
- where reference_type='member_application'
-   and event_type='MEMBER_APPLICATION_RECEIVED'
-   and reference_id is not null
-   and idempotency_key is null;
