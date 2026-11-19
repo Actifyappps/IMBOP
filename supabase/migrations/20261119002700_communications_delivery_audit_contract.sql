@@ -3,8 +3,9 @@
 -- Keep provider response visible to authorized platform operations for troubleshooting.
 
 drop function if exists public.record_platform_email_delivery_result(uuid,text,text,text);
+drop function if exists public.get_platform_email_delivery_dashboard(integer,integer);
 
-create or replace function public.get_platform_email_delivery_dashboard(
+create function public.get_platform_email_delivery_dashboard(
   p_limit integer default 100,
   p_offset integer default 0
 )
