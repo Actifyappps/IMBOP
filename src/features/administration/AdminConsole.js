@@ -18,6 +18,7 @@ export default function AdminConsole({section="dashboard"}) {
   const [pricingPlans, setPricingPlans] = useState([]);
   const [commRecipients, setCommRecipients] = useState([]);
   const [commTemplates, setCommTemplates] = useState([]);
+  const [emailQueue, setEmailQueue] = useState([]);
   const [commDraft, setCommDraft] = useState({recipient:"",template:"",subject:"",body:""});
   const [drawer, setDrawer] = useState(null);
   const [drawerText, setDrawerText] = useState("");
@@ -26,13 +27,14 @@ export default function AdminConsole({section="dashboard"}) {
 
   async function loadData() {
     setLoading(true); setMessage("");
-    const [a, i, o, p, cr, ct] = await Promise.all([
+    const [a, i, o, p, cr, ct, eq] = await Promise.all([
       supabase.from("institution_applications").select("*").in("status", REVIEWABLE).order("submitted_at", {ascending:true}),
       supabase.from("institutions").select("id,name,legal_name,slug,status,status_reason,created_at,deleted_at").order("created_at", {ascending:true}),
       supabase.rpc("platform_institution_onboarding_overview"),
       supabase.rpc("get_platform_pricing_plans"),
       supabase.rpc("get_platform_communication_recipients"),
-      supabase.rpc("get_platform_communication_templates")
+      supabase.rpc("get_platform_communication_templates"),
+      supabase.rpc("get_platform_email_delivery_dashboard", {p_limit:100,p_offset:0})
     ]);
     if (a.error) setMessage(a.error.message);
     if (i.error) setMessage((p)=>p || i.error.message);
@@ -40,8 +42,9 @@ export default function AdminConsole({section="dashboard"}) {
     if (p.error) setMessage((m)=>m || p.error.message);
     if (cr.error) setMessage((m)=>m || cr.error.message);
     if (ct.error) setMessage((m)=>m || ct.error.message);
+    if (eq.error) setMessage((m)=>m || eq.error.message);
     setApplications(a.data || []); setInstitutions(i.data || []); setOnboarding(o.data || []); setPricingPlans(p.data || []);
-    setCommRecipients(cr.data || []); setCommTemplates(ct.data || []); setLoading(false);
+    setCommRecipients(cr.data || []); setCommTemplates(ct.data || []); setEmailQueue(eq.data || []); setLoading(false);
   }
   useEffect(()=>{loadData()},[]);
   useEffect(()=>{
@@ -137,6 +140,22 @@ export default function AdminConsole({section="dashboard"}) {
     } finally {
       setWorking(null);
     }
+  }
+
+  async function retryEmailDelivery(id) {
+    setWorking("retry-"+id); setMessage("");
+    const {data,error}=await supabase.rpc("retry_platform_email_delivery",{p_delivery_id:id});
+    if(error){setMessage(error.message);setWorking(null);return}
+    if(!data?.ok){setMessage(data?.status==="RETRY_LIMIT_REACHED"?"Retry limit reached for this delivery.":data?.status||"Delivery could not be queued.");setWorking(null);return}
+    setMessage("Email delivery safely returned to the queue.");
+    await loadData(); setWorking(null);
+  }
+
+  async function refreshEmailQueue() {
+    setWorking("refresh-email-queue"); setMessage("");
+    const {data,error}=await supabase.rpc("get_platform_email_delivery_dashboard",{p_limit:100,p_offset:0});
+    if(error)setMessage(error.message); else setEmailQueue(data||[]);
+    setWorking(null);
   }
 
   function controls(i){
@@ -254,6 +273,34 @@ export default function AdminConsole({section="dashboard"}) {
     <section className="admin-section">
       <div className="section-heading"><div><div className="eyebrow">COMMUNICATIONS CENTRE</div><h2>SE Admin Communications</h2></div><span className="count-badge">{commRecipients.length} institution admins</span></div>
       <div className="card pricing-admin-note"><b>Controlled communications only.</b> Messages sent here are recorded as ADMIN communications and delivered in-app. Email delivery is intentionally not marked as sent until an approved email provider is connected.</div>
+      <div className="card">
+        <div className="section-heading" style={{marginBottom:"1rem"}}>
+          <div><div className="eyebrow">DELIVERY OPERATIONS</div><h3>Email delivery queue</h3></div>
+          <div className="admin-actions">
+            <button className="admin-btn" disabled={working==="refresh-email-queue"} onClick={refreshEmailQueue}>REFRESH QUEUE</button>
+          </div>
+        </div>
+        {(() => {
+          const retryable=emailQueue.filter(x=>x.operational_state==="RETRYABLE").length;
+          const stuck=emailQueue.filter(x=>x.operational_state==="STUCK").length;
+          const queued=emailQueue.filter(x=>x.operational_state==="QUEUED").length;
+          const delivered=emailQueue.filter(x=>x.operational_state==="DELIVERED").length;
+          return <div className="communication-summary"><b>{queued}</b><span>QUEUED</span><b>{retryable}</b><span>RETRYABLE</span><b>{stuck}</b><span>STUCK</span><b>{delivered}</b><span>DELIVERED</span></div>;
+        })()}
+        {!emailQueue.length?<div className="empty-state">No email deliveries are currently recorded.</div>:
+          <div className="admin-grid">{emailQueue.map(item=><article className="admin-card" key={item.delivery_id}>
+            <div className="admin-card-head"><div><div className="eyebrow">{item.event_type||item.communication_type||"EMAIL"}</div><h3>{item.subject}</h3><p className="admin-contact">{item.institution_name||"Platform"} · {item.recipient_email}</p></div><span className="status-badge">{item.operational_state}</span></div>
+            <div className="detail-grid">
+              <div><span>Delivery</span><strong>{item.delivery_status}</strong></div>
+              <div><span>Attempts / retries</span><strong>{item.retry_count}</strong></div>
+              <div><span>Created</span><strong>{new Date(item.created_at).toLocaleString("en-KE")}</strong></div>
+              <div><span>Last attempt</span><strong>{item.attempted_at?new Date(item.attempted_at).toLocaleString("en-KE"):"—"}</strong></div>
+              <div><span>Provider ID</span><strong>{item.provider_message_id||"—"}</strong></div>
+              <div><span>Failure</span><strong>{item.failure_reason||"—"}</strong></div>
+            </div>
+            {(item.operational_state==="RETRYABLE"||item.operational_state==="STUCK")&&<div className="admin-actions"><button className="admin-btn admin-btn-primary" disabled={working==="retry-"+item.delivery_id} onClick={()=>retryEmailDelivery(item.delivery_id)}>QUEUE SAFE RETRY</button></div>}
+          </article>)}</div>}
+      </div>
       <div className="card">
         <div className="grid">
           <div><label className="label">RECIPIENT</label><select className="input" value={commDraft.recipient} onChange={e=>setCommDraft(d=>({...d,recipient:e.target.value}))}>
