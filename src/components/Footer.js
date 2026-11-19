@@ -1,12 +1,14 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer(){
   return <footer>
     <div className="footer-inner">
       <div className="footer-brand">
-        <strong>SAINTSWAY EQUITY</strong>
-        <span aria-hidden="true">|</span>
+        <Image src="/imbop-logo.svg" alt="" width={28} height={28}/>
         <strong>IMBOP</strong>
+        <span aria-hidden="true">|</span>
+        <strong>BY SAINTSWAY EQUITY</strong>
       </div>
       <nav className="footer-links" aria-label="Footer">
         <Link href="/contact">CONTACT</Link>
