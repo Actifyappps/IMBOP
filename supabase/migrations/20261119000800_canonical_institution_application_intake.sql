@@ -107,7 +107,7 @@ begin
   if nullif(btrim(p_description),'') is null then raise exception 'Please tell us about the institution.'; end if;
   if coalesce(p_authorised,false) is not true then raise exception 'Please confirm that you are authorised to submit this application.'; end if;
 
-  v_logo_token := encode(gen_random_bytes(18),'hex');
+  v_logo_token := replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-','');
 
   insert into public.institution_applications(
     institution_name, legal_name, brand_name, institution_type, contact_name, contact_role,
