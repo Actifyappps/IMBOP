@@ -151,7 +151,6 @@ on public.billing_events for select
 to authenticated
 using (private.has_institution_permission(institution_id,'institution_admin'));
 
--- Platform administration is performed through tightly scoped RPCs rather than direct table writes.
 revoke all on table public.billing_invoices from anon, authenticated;
 revoke all on table public.billing_invoice_lines from anon, authenticated;
 revoke all on table public.billing_payments from anon, authenticated;
@@ -165,24 +164,12 @@ grant select on table public.billing_events to authenticated;
 
 create or replace function public.get_my_institution_billing_summary(p_institution_id uuid)
 returns table(
-  institution_id uuid,
-  plan_code text,
-  member_limit integer,
-  monthly_fee_kes numeric,
-  billing_status text,
-  compliance_status text,
-  pilot_end_date date,
-  next_due_date date,
-  current_onboards bigint,
-  latest_invoice_id uuid,
-  latest_invoice_number text,
-  latest_invoice_status text,
-  latest_invoice_total_kes numeric,
-  latest_invoice_due_date date
+  institution_id uuid, plan_code text, member_limit integer, monthly_fee_kes numeric,
+  billing_status text, compliance_status text, pilot_end_date date, next_due_date date,
+  current_onboards bigint, latest_invoice_id uuid, latest_invoice_number text,
+  latest_invoice_status text, latest_invoice_total_kes numeric, latest_invoice_due_date date
 )
-language sql
-security invoker
-set search_path to 'public'
+language sql security invoker set search_path to 'public'
 as $$
   with account as (
     select b.institution_id,b.plan_code,b.member_limit,b.monthly_fee_kes,b.billing_status,
@@ -194,15 +181,13 @@ as $$
   onboard as (
     select count(*)::bigint current_onboards
       from public.memberships m
-     where m.institution_id=p_institution_id
-       and m.status='active'
+     where m.institution_id=p_institution_id and m.status='active'
   ),
   latest as (
     select i.id,i.invoice_number,i.status,i.total_kes,i.due_date
       from public.billing_invoices i
      where i.institution_id=p_institution_id
-     order by i.issued_at desc,i.created_at desc
-     limit 1
+     order by i.issued_at desc,i.created_at desc limit 1
   )
   select a.institution_id,a.plan_code,a.member_limit,a.monthly_fee_kes,a.billing_status,
          a.compliance_status,a.pilot_end_date,a.next_due_date,o.current_onboards,
@@ -214,17 +199,10 @@ revoke execute on function public.get_my_institution_billing_summary(uuid) from 
 grant execute on function public.get_my_institution_billing_summary(uuid) to authenticated;
 
 create or replace function public.platform_create_invoice(
-  p_institution_id uuid,
-  p_period_start date,
-  p_period_end date,
-  p_due_date date,
-  p_plan_code text default null,
-  p_notes text default null
+  p_institution_id uuid,p_period_start date,p_period_end date,p_due_date date,
+  p_plan_code text default null,p_notes text default null
 )
-returns uuid
-language plpgsql
-security definer
-set search_path to ''
+returns uuid language plpgsql security definer set search_path to ''
 as $function$
 declare
   v_invoice_id uuid;
@@ -243,18 +221,14 @@ begin
 
   select count(*)::integer into v_onboards
     from public.memberships m
-   where m.institution_id=p_institution_id
-     and m.status='active';
+   where m.institution_id=p_institution_id and m.status='active';
 
-  select coalesce(nullif(trim(p_plan_code),''),b.plan_code),
-         b.monthly_fee_kes
+  select coalesce(nullif(trim(p_plan_code),''),b.plan_code),b.monthly_fee_kes
     into v_plan_code,v_fee
     from public.institution_billing_accounts b
    where b.institution_id=p_institution_id;
 
-  if v_plan_code is null then
-    raise exception 'BILLING_ACCOUNT_NOT_FOUND';
-  end if;
+  if v_plan_code is null then raise exception 'BILLING_ACCOUNT_NOT_FOUND'; end if;
 
   select coalesce(p.transition_minimum_kes,0)
     into v_transition
@@ -263,8 +237,7 @@ begin
 
   if v_fee is null then
     select coalesce(p.monthly_fee_kes,0) into v_fee
-      from public.imbop_pricing_plans p
-     where p.plan_code=v_plan_code;
+      from public.imbop_pricing_plans p where p.plan_code=v_plan_code;
   end if;
 
   v_fee := coalesce(v_fee,0);
@@ -272,12 +245,11 @@ begin
     when v_onboards > 50 and v_onboards <= 100 then coalesce(v_transition,5000)
     else 0
   end;
-  -- The first transition month is a discounted minimum, not an extra fee on top of the standard plan.\n  v_total := case when v_transition > 0 then v_transition else greatest(0,v_fee) end;
 
-  v_status := case
-    when v_total=0 then 'WAIVED'
-    else 'ISSUED'
-  end;
+  -- The first transition month is a discounted minimum, not an extra fee on top of the standard plan.
+  v_total := case when v_transition > 0 then v_transition else greatest(0,v_fee) end;
+
+  v_status := case when v_total=0 then 'WAIVED' else 'ISSUED' end;
 
   v_invoice_number := 'IMBOP-' || to_char(p_period_start,'YYYY') || '-' ||
     lpad(nextval('public.imbop_invoice_number_seq')::text,6,'0');
@@ -290,19 +262,29 @@ begin
     v_onboards,v_total,0,v_total,v_status,p_notes,v_user
   ) returning id into v_invoice_id;
 
-  insert into public.billing_invoice_lines(
-    invoice_id,line_type,description,quantity,unit_amount_kes,line_amount_kes,metadata
-  ) values (
-    v_invoice_id,'PLAN','IMBOP ' || v_plan_code || ' monthly plan',1,v_fee,v_fee,
-    jsonb_build_object('onboards_snapshot',v_onboards,'plan_code',v_plan_code)
-  );
-
+  -- Keep invoice lines consistent with the actual invoice total.
   if v_transition > 0 then
     insert into public.billing_invoice_lines(
       invoice_id,line_type,description,quantity,unit_amount_kes,line_amount_kes,metadata
     ) values (
-      v_invoice_id,'TRANSITION','Discounted first transition month minimum',1,v_transition,v_transition,
-      jsonb_build_object('onboards_snapshot',v_onboards,'transition_minimum_kes',v_transition)
+      v_invoice_id,'TRANSITION',
+      'Discounted first transition month — total invoice',
+      1,v_transition,v_transition,
+      jsonb_build_object(
+        'onboards_snapshot',v_onboards,
+        'standard_monthly_fee_kes',v_fee,
+        'transition_minimum_kes',v_transition,
+        'discount_applied_kes',greatest(0,v_fee-v_transition),
+        'is_total_transition_invoice',true
+      )
+    );
+  else
+    insert into public.billing_invoice_lines(
+      invoice_id,line_type,description,quantity,unit_amount_kes,line_amount_kes,metadata
+    ) values (
+      v_invoice_id,'PLAN','IMBOP ' || v_plan_code || ' monthly plan',
+      1,v_fee,v_fee,
+      jsonb_build_object('onboards_snapshot',v_onboards,'plan_code',v_plan_code)
     );
   end if;
 
@@ -324,20 +306,11 @@ revoke execute on function public.platform_create_invoice(uuid,date,date,date,te
 grant execute on function public.platform_create_invoice(uuid,date,date,date,text,text) to authenticated;
 
 create or replace function public.platform_record_billing_payment(
-  p_institution_id uuid,
-  p_amount_kes numeric,
-  p_payment_method text default 'MANUAL',
-  p_provider text default null,
-  p_provider_reference text default null,
-  p_invoice_id uuid default null,
-  p_received_at timestamptz default now(),
-  p_idempotency_key text default null,
-  p_notes text default null
+  p_institution_id uuid,p_amount_kes numeric,p_payment_method text default 'MANUAL',
+  p_provider text default null,p_provider_reference text default null,p_invoice_id uuid default null,
+  p_received_at timestamptz default now(),p_idempotency_key text default null,p_notes text default null
 )
-returns uuid
-language plpgsql
-security definer
-set search_path to ''
+returns uuid language plpgsql security definer set search_path to ''
 as $function$
 declare
   v_payment_id uuid;
@@ -346,23 +319,18 @@ declare
   r record;
   v_alloc numeric(14,2);
 begin
-  if not private.has_platform_permission('institution_manage') then
-    raise exception 'PLATFORM_PERMISSION_REQUIRED';
-  end if;
+  if not private.has_platform_permission('institution_manage') then raise exception 'PLATFORM_PERMISSION_REQUIRED'; end if;
   if p_amount_kes <= 0 then raise exception 'INVALID_PAYMENT_AMOUNT'; end if;
   if p_invoice_id is not null and not exists(
-    select 1 from public.billing_invoices
-     where id=p_invoice_id and institution_id=p_institution_id
-  ) then
-    raise exception 'INVOICE_NOT_FOUND';
-  end if;
+    select 1 from public.billing_invoices where id=p_invoice_id and institution_id=p_institution_id
+  ) then raise exception 'INVOICE_NOT_FOUND'; end if;
 
   insert into public.billing_payments(
-    institution_id,provider,provider_reference,payment_method,amount_kes,
-    status,received_at,recorded_by_user_id,idempotency_key,notes
+    institution_id,provider,provider_reference,payment_method,amount_kes,status,received_at,
+    recorded_by_user_id,idempotency_key,notes
   ) values(
-    p_institution_id,p_provider,p_provider_reference,upper(p_payment_method),p_amount_kes,
-    'CONFIRMED',p_received_at,v_user,p_idempotency_key,p_notes
+    p_institution_id,p_provider,p_provider_reference,upper(p_payment_method),p_amount_kes,'CONFIRMED',
+    p_received_at,v_user,p_idempotency_key,p_notes
   )
   on conflict (idempotency_key) do update set updated_at=now()
   returning id into v_payment_id;
@@ -373,17 +341,17 @@ begin
 
   for r in
     select i.id,
-           greatest(0,i.total_kes-coalesce((
-             select sum(a.amount_kes)
-               from public.billing_payment_allocations a
-               join public.billing_payments p on p.id=a.payment_id
-              where a.invoice_id=i.id and p.status='CONFIRMED'
-           ),0)) outstanding
-      from public.billing_invoices i
-     where i.institution_id=p_institution_id
-       and i.status in ('ISSUED','OVERDUE','PARTIALLY_PAID')
-       and (p_invoice_id is null or i.id=p_invoice_id)
-     order by i.due_date,i.issued_at
+      greatest(0,i.total_kes-coalesce((
+        select sum(a.amount_kes)
+          from public.billing_payment_allocations a
+          join public.billing_payments p on p.id=a.payment_id
+         where a.invoice_id=i.id and p.status='CONFIRMED'
+      ),0)) outstanding
+    from public.billing_invoices i
+    where i.institution_id=p_institution_id
+      and i.status in ('ISSUED','OVERDUE','PARTIALLY_PAID')
+      and (p_invoice_id is null or i.id=p_invoice_id)
+    order by i.due_date,i.issued_at
   loop
     exit when v_remaining <= 0;
     v_alloc := least(v_remaining,r.outstanding);
@@ -429,18 +397,12 @@ revoke execute on function public.platform_record_billing_payment(uuid,numeric,t
 grant execute on function public.platform_record_billing_payment(uuid,numeric,text,text,text,uuid,timestamptz,text,text) to authenticated;
 
 create or replace function public.platform_mark_overdue_invoices(p_as_of date default current_date)
-returns integer
-language plpgsql
-security definer
-set search_path to ''
+returns integer language plpgsql security definer set search_path to ''
 as $function$
 declare
-  v_user uuid := auth.uid();
   v_count integer;
 begin
-  if not private.has_platform_permission('institution_manage') then
-    raise exception 'PLATFORM_PERMISSION_REQUIRED';
-  end if;
+  if not private.has_platform_permission('institution_manage') then raise exception 'PLATFORM_PERMISSION_REQUIRED'; end if;
 
   update public.billing_invoices i
      set status='OVERDUE',updated_at=now()
@@ -462,26 +424,14 @@ revoke execute on function public.platform_mark_overdue_invoices(date) from publ
 grant execute on function public.platform_mark_overdue_invoices(date) to authenticated;
 
 create or replace function public.platform_get_billing_accounts(
-  p_status text default null,
-  p_limit integer default 100,
-  p_offset integer default 0
+  p_status text default null,p_limit integer default 100,p_offset integer default 0
 )
 returns table(
-  institution_id uuid,
-  institution_name text,
-  plan_code text,
-  member_limit integer,
-  monthly_fee_kes numeric,
-  billing_status text,
-  compliance_status text,
-  next_due_date date,
-  current_onboards bigint,
-  outstanding_kes numeric,
-  latest_invoice_status text
+  institution_id uuid,institution_name text,plan_code text,member_limit integer,monthly_fee_kes numeric,
+  billing_status text,compliance_status text,next_due_date date,current_onboards bigint,
+  outstanding_kes numeric,latest_invoice_status text
 )
-language sql
-security invoker
-set search_path to 'public'
+language sql security invoker set search_path to 'public'
 as $$
   with base as (
     select b.institution_id,b.plan_code,b.member_limit,b.monthly_fee_kes,b.billing_status,
@@ -494,15 +444,15 @@ as $$
   ),
   outstanding as (
     select i.institution_id,
-           coalesce(sum(greatest(0,i.total_kes-coalesce((
-             select sum(a.amount_kes)
-               from public.billing_payment_allocations a
-               join public.billing_payments p on p.id=a.payment_id
-              where a.invoice_id=i.id and p.status='CONFIRMED'
-           ),0))),0) outstanding_kes
-      from public.billing_invoices i
-     where i.status not in ('PAID','WAIVED','VOID')
-     group by i.institution_id
+      coalesce(sum(greatest(0,i.total_kes-coalesce((
+        select sum(a.amount_kes)
+          from public.billing_payment_allocations a
+          join public.billing_payments p on p.id=a.payment_id
+         where a.invoice_id=i.id and p.status='CONFIRMED'
+      ),0))),0) outstanding_kes
+    from public.billing_invoices i
+    where i.status not in ('PAID','WAIVED','VOID')
+    group by i.institution_id
   ),
   latest as (
     select distinct on (i.institution_id) i.institution_id,i.status
