@@ -87,6 +87,7 @@ export async function dispatchOne(client: RpcClient, deliveryId?: string) {
       p_status: "FAILED",
       p_provider_message_id: providerData?.id ?? null,
       p_failure_reason: providerData?.message ?? providerText.slice(0, 1000),
+      p_provider_response: { status: response.status, body: providerData ?? providerText.slice(0, 2000) },
     });
     return {
       ok: false,
@@ -100,6 +101,7 @@ export async function dispatchOne(client: RpcClient, deliveryId?: string) {
     p_delivery_id: item.delivery_id,
     p_status: "DELIVERED",
     p_provider_message_id: providerData?.id ?? null,
+    p_provider_response: { status: response.status, body: providerData ?? providerText.slice(0, 2000) },
   });
 
   return {
