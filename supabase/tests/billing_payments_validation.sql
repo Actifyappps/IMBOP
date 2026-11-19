@@ -104,4 +104,43 @@ begin
   end if;
 end $$;
 
+
+
+-- Public pricing/stats remain callable to anonymous visitors, but not to signed-in users.
+do $
+declare v_bad integer;
+begin
+  select count(*) into v_bad
+  from information_schema.role_routine_grants
+  where routine_schema='public'
+    and routine_name in ('get_imbop_public_stats','get_public_imbop_pricing_plans')
+    and grantee='authenticated'
+    and privilege_type='EXECUTE';
+  if v_bad <> 0 then raise exception 'PUBLIC_RPC_AUTHENTICATED_EXECUTE_PRESENT'; end if;
+end $;
+
+-- Platform communication recipient lookup must remain platform-admin gated.
+do $
+declare v_def text;
+begin
+  select pg_get_functiondef(p.oid) into v_def
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='get_platform_communication_recipients';
+  if v_def is null or position('has_platform_permission' in v_def)=0 then
+    raise exception 'COMMUNICATION_RECIPIENT_PERMISSION_GUARD_MISSING';
+  end if;
+end $;
+
+-- Refund confirmation must recalculate invoice status.
+do $
+declare v_def text;
+begin
+  select pg_get_functiondef(p.oid) into v_def
+  from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='platform_confirm_payment_refund';
+  if v_def is null or position('platform_recalculate_invoice_status' in v_def)=0 then
+    raise exception 'REFUND_INVOICE_RECALCULATION_MISSING';
+  end if;
+end $;
+
 select 'BILLING STRUCTURAL TESTS PASS' as result;
