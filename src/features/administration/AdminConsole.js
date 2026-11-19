@@ -343,7 +343,7 @@ export default function AdminConsole({section="dashboard"}) {
           <div><label className="label">INSTITUTION</label><select className="input" value={billingDraft.institution_id} onChange={e=>setBillingDraft(d=>({...d,institution_id:e.target.value}))}>
             <option value="">Select institution</option>{billingAccounts.map(b=><option key={b.institution_id} value={b.institution_id}>{b.institution_name}</option>)}
           </select></div>
-          <div><label className="label">PLAN CODE (OPTIONAL)</label><input className="input" value={billingDraft.plan_code} onChange={e=>setBillingDraft(d=>({...d,plan_code:e.target.value}))}/></div>
+          <div><label className="label">PLAN</label><input className="input" value={(billingAccounts.find(b=>b.institution_id===billingDraft.institution_id)?.plan_code)||"Resolved from institution billing account"} readOnly/></div>
           <div><label className="label">PERIOD START</label><input className="input" type="date" value={billingDraft.period_start} onChange={e=>setBillingDraft(d=>({...d,period_start:e.target.value}))}/></div>
           <div><label className="label">PERIOD END</label><input className="input" type="date" value={billingDraft.period_end} onChange={e=>setBillingDraft(d=>({...d,period_end:e.target.value}))}/></div>
           <div><label className="label">DUE DATE</label><input className="input" type="date" value={billingDraft.due_date} onChange={e=>setBillingDraft(d=>({...d,due_date:e.target.value}))}/></div>
