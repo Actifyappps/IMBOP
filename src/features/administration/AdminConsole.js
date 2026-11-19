@@ -272,7 +272,7 @@ export default function AdminConsole({section="dashboard"}) {
     {section === "communications" && (
     <section className="admin-section">
       <div className="section-heading"><div><div className="eyebrow">COMMUNICATIONS CENTRE</div><h2>SE Admin Communications</h2></div><span className="count-badge">{commRecipients.length} institution admins</span></div>
-      <div className="card pricing-admin-note"><b>Controlled communications only.</b> Messages sent here are recorded as ADMIN communications and delivered in-app. Email delivery is intentionally not marked as sent until an approved email provider is connected.</div>
+      <div className="card pricing-admin-note"><b>Controlled communications only.</b> Messages sent here are recorded as ADMIN communications and delivered in-app. Transactional email is provider-backed and its delivery outcome is recorded separately in the email delivery audit.</div>
       <div className="card">
         <div className="section-heading" style={{marginBottom:"1rem"}}>
           <div><div className="eyebrow">DELIVERY OPERATIONS</div><h3>Email delivery queue</h3></div>
