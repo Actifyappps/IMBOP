@@ -62,7 +62,7 @@ p,.admin-description,.admin-contact,.communication-body,.institution-card p,.pla
   body{font-size:16px}
   .hero-brand{font-size:clamp(2.7rem,16vw,4rem)}
   .hero h1,.admin-hero h1,.plans-hero h1,.institution-space-hero h1{font-size:clamp(1.9rem,8vw,2.35rem)}
-  .hero-subtitle{font-size:1rem}
+  .hero-subtitle{font-size:1rem;margin-top:6px}
   .hero-intro,.hero p{font-size:1rem}
   .hero h2,.section-heading h2,.admin-section-heading h2{font-size:1.25rem}
   .card h2,.plan-card h2,.institution-card h2,.communication-head h2,.admin-drawer h2{font-size:1.05rem}
