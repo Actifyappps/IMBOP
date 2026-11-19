@@ -18,7 +18,7 @@ export default function BillingPage(){
   const ctx=await supabase.rpc("get_my_institution_admin_context");
   if(ctx.error||!ctx.data?.institution_id){setMessage(ctx.error?.message||"No institution billing account is available for this account.");setLoading(false);return}
   const id=ctx.data.institution_id;
-  const [s,r]=await Promise.all([supabase.rpc("get_my_institution_billing_summary",{p_institution_id:id}),supabase.rpc("get_my_billing_receipts",{p_institution_id:id})]);
+  const [s,r]=await Promise.all([supabase.rpc("get_my_billing_dashboard",{p_institution_id:id}),supabase.rpc("get_my_billing_receipts",{p_institution_id:id})]);
   if(s.error)setMessage(s.error.message);else setSummary({...s.data,institution_id:id});
   if(r.error)setMessage(m=>m||r.error.message);else setReceipts(r.data||[]);
   setLoading(false);
