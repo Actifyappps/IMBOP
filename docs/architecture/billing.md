@@ -333,3 +333,45 @@ IMBOP must still determine:
 Before connecting real payment rails, the billing domain should be able to answer:
 
 > **Who owes what, for which period, under which plan, what has been received, what has been allocated, what remains outstanding, what receipt was issued, and who changed the record?**
+
+## Provider payment rails
+
+The institution-facing payment flow now follows:
+
+Outstanding Bill → Paying How Much Now → Payment Method → Payment Intent → Provider Prompt / Checkout → Provider Confirmation → Billing Payment → Invoice Allocation → Receipt
+
+Supported customer channels:
+- M-PESA
+- Airtel Money
+- Bank Transfer
+- Card
+
+### Partial payments
+
+Institutions may pay less than the outstanding invoice balance. The requested amount is bound server-side to the selected invoice and cannot exceed its current outstanding balance. The invoice becomes PARTIALLY_PAID until fully allocated, then PAID.
+
+### M-PESA
+
+The imbop-payment-provider Edge Function provides the M-PESA adapter boundary. It:
+1. authenticates the institution administrator;
+2. creates the institution-scoped payment intent;
+3. obtains a Daraja access token server-side;
+4. requests the M-PESA STK prompt;
+5. stores provider references and moves the intent to PENDING;
+6. receives the provider callback;
+7. verifies the callback against the payment intent and exact amount;
+8. finalizes the payment idempotently;
+9. allocates the payment to the invoice;
+10. issues the IMBOP receipt.
+
+The prompt is not the confirmation. The provider callback/verification is the confirmation.
+
+Provider credentials remain server-side and are not committed to GitHub. The branch defaults to the Safaricom sandbox endpoint until production configuration is deliberately supplied. Safaricom describes Daraja 3.0 as the bridge for integrating M-PESA APIs into web and mobile applications.
+
+### Airtel Money, Bank Transfer and Card
+
+These channels use the same provider-neutral payment-intent and ledger architecture. Their provider adapters remain configuration-gated until the respective credentials, sandbox contracts and callback/reconciliation rules are supplied and tested.
+
+### Reconciliation and idempotency
+
+Provider references, checkout references and payment-intent IDs are persisted. Duplicate callbacks cannot create a second payment because provider finalization uses an idempotency key derived from the payment intent. Amount mismatches, expired intents and overpayments are rejected server-side.
