@@ -23,6 +23,58 @@ IMBOP is **institutional economic network infrastructure** that connects an inst
 
 ---
 
+## Brand identity
+
+IMBOP is a product of **Saintsway Equity (SE)**. Its visual identity inherits the SE master brand rather than creating a disconnected product brand.
+
+### Brand hierarchy
+
+**SAINTSWAY EQUITY**  
+*The Operating Infrastructure for Trusted MSME & Cooperative Ownership*
+
+↓  
+
+**IMBOP**  
+*Institutional Economic Network Infrastructure*
+
+The preferred digital treatment is the **SE logo mark + IMBOP**. The full SAINTSWAY EQUITY wordmark is reserved for formal/institutional contexts where the parent identity needs to be explicit.
+
+### Brand colour system
+
+The IMBOP interface uses the SE master colour direction:
+
+| Role | Colour | Hex | Usage |
+|---|---|---|---|
+| **Primary / Trust Blue** | Deep / Royal Blue | `#123B7A` | Primary brand surfaces, navigation, headings, institutional trust cues |
+| **Growth / Action Green** | Growth Green | `#2E8B57` | Primary actions, positive states, opportunities, progress and calls to action |
+| **Premium Accent Gold** | Bright Royal Gold | `#D4AF37` | Selective highlights, premium accents, key brand details and emphasis |
+| **Workspace White** | White | `#FFFFFF` | Main workspace backgrounds, cards and clean content areas |
+| **Text / Structure** | Deep Charcoal | `#1F2937` | Body text, labels and supporting interface content |
+| **Soft Surface** | Light Neutral | `#F5F7FA` | Secondary surfaces, panels and visual separation |
+
+**Colour principle:** Blue leads. Green drives action and growth. Gold accents. White gives the platform room to breathe.
+
+> **Important:** These colour tokens are the current IMBOP/SE product-system specification. UI components should reference the central design tokens rather than introducing arbitrary colours page by page.
+
+### Logo usage
+
+- **Primary digital:** SE logo mark + IMBOP
+- **Mobile / compact:** SE logo mark
+- **Formal / institutional:** full SAINTSWAY EQUITY lockup + IMBOP
+- **Favicon / app icon:** SE logo mark
+- Do not stretch, recolour, distort or independently redraw the SE master logo.
+- IMBOP should remain visually subordinate to the SE master identity while retaining clear product recognition.
+
+### Visual language
+
+IMBOP should feel:
+
+**TRUSTED · STRUCTURED · MODERN · INSTITUTIONAL · ACCESSIBLE · ECONOMICALLY ACTIVE**
+
+The interface should favour clean white workspaces, strong blue structure, purposeful green actions and restrained gold accents.
+
+---
+
 ## Product boundaries
 
 IMBOP is not a generic directory, website builder, conventional checkout marketplace, social network, accounting system, or investment/loan platform.
