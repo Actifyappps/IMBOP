@@ -113,7 +113,7 @@ language plpgsql
 security definer
 set search_path to ''
 as $function$
-declare v_id uuid;
+declare v_id uuid; v_import_id uuid;
 begin
   if current_setting('request.jwt.claim.role', true) <> 'service_role' then
     raise exception 'SERVICE_ROLE_REQUIRED';
@@ -123,14 +123,14 @@ begin
   -- A statement entry must belong to a real import batch.
   insert into public.billing_bank_statement_imports(settlement_account_id,source_type,status,metadata)
   values(p_settlement_account_id,'MANUAL','PROCESSING',jsonb_build_object('auto_created',true))
-  returning id into v_id;
+  returning id into v_import_id;
 
   insert into public.billing_bank_statement_entries(
     import_id,settlement_account_id,transaction_date,external_reference,narrative,
     amount_kes,direction,counterparty_name,counterparty_account,metadata
   )
   select
-    v_id,p_settlement_account_id,p_transaction_date,p_external_reference,p_narrative,
+    v_import_id,p_settlement_account_id,p_transaction_date,p_external_reference,p_narrative,
     p_amount_kes,'CREDIT',p_counterparty_name,p_counterparty_account,p_metadata
   where not exists (
     select 1 from public.billing_bank_statement_entries e
