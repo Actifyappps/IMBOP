@@ -1,13 +1,14 @@
 "use client";
 import Link from "next/link";
+import {Suspense} from "react";
 import {useSearchParams} from "next/navigation";
 import Nav from "../../../components/Nav";
 import Footer from "../../../components/Footer";
 
-export default function ApplicationConfirmation(){ 
+function ConfirmationContent(){
   const searchParams=useSearchParams();
   const reference=searchParams.get("reference");
-  return <><Nav/><main className="wrap">
+  return <main className="wrap">
     <div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}>
       <div className="eyebrow">APPLICATION RECEIVED</div>
       <h1>Thank You. Your Application Is In.</h1>
@@ -33,5 +34,9 @@ export default function ApplicationConfirmation(){
       <h2>Reach Institutional Members Through IMBOP</h2>
       <p>This space can carry approved institutional announcements, partner messages or advertising as the IMBOP commercial model develops.</p>
     </div>
-  </main><Footer/></>
+  </main>
+}
+
+export default function ApplicationConfirmation(){
+  return <><Nav/><Suspense fallback={<main className="wrap"><div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}><div className="eyebrow">APPLICATION RECEIVED</div><h1>Loading your application reference…</h1></div></main>}><ConfirmationContent/></Suspense><Footer/></>
 }
