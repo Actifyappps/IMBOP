@@ -272,7 +272,7 @@ begin
     when v_onboards > 50 and v_onboards <= 100 then coalesce(v_transition,5000)
     else 0
   end;
-  v_total := greatest(0,v_fee + v_transition);
+  -- The first transition month is a discounted minimum, not an extra fee on top of the standard plan.\n  v_total := case when v_transition > 0 then v_transition else greatest(0,v_fee) end;
 
   v_status := case
     when v_total=0 then 'WAIVED'
