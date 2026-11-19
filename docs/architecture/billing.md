@@ -384,3 +384,25 @@ The M-PESA adapter now also supports an authenticated **status query** for a pen
 The database also protects the ledger against concurrent allocation races: invoice allocations lock and validate the target invoice/payment, provider references are unique per provider, outstanding calculations count only confirmed payments, and stale payment intents can be expired by a service-only operation.
 
 Safaricom's current documentation describes the Transaction Status API as a secondary reconciliation mechanism when callbacks are not received; for STK Push, the dedicated STK Push Query endpoint is the appropriate query boundary for the stored CheckoutRequestID. citeturn598955search0turn360370search0
+
+
+## Banking, reconciliation and refund foundation
+
+The billing layer now includes a provider-neutral banking settlement foundation without pretending to be a bank or payment service provider.
+
+It provides:
+- controlled SE settlement-account instructions for institution bank transfers;
+- bank statement import batches and statement entries;
+- duplicate bank-reference protection;
+- unmatched / matched / exception reconciliation states;
+- service-only statement-entry ingestion;
+- refund requests and provider-confirmed refunds;
+- refund limits tied to the original settled payment;
+- payment status transition to REFUNDED only after the full settled amount has been refunded;
+- dashboard balance calculations that preserve the original receipt and add confirmed refunds back to the institution obligation.
+
+No bank API, bank credential, card processor, Airtel Money production rail or live refund rail is activated by this foundation.
+
+The architectural boundary is deliberate: IMBOP owns the **commercial ledger, billing obligation, payment intent, reconciliation record and audit trail**. A licensed bank/PSP owns the actual movement and settlement of money. Kenya's payment-system framework places payment-service activity under CBK oversight and authorisation requirements, so IMBOP should integrate with authorised providers rather than present itself as a bank or unlicensed payment service. citeturn321902search0turn321902search1turn321902search9
+
+Safaricom's Daraja platform remains the provider boundary for M-PESA integration; production activation should follow Safaricom's own onboarding/go-live requirements and sandbox verification. citeturn794092search2turn794092search3
