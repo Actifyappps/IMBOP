@@ -86,7 +86,6 @@ begin
 end;
 $function$;
 
-revoke all on function public.record_platform_email_delivery_result(uuid,text,text,text) from public,anon,authenticated;
 revoke all on function public.record_platform_email_delivery_result(uuid,text,text,text,jsonb) from public,anon,authenticated;
 grant execute on function public.record_platform_email_delivery_result(uuid,text,text,text,jsonb) to service_role;
 
