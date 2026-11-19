@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import {useSearchParams} from "next/navigation";
+import {Suspense} from "react";
 import Nav from "../../../components/Nav";
 import Footer from "../../../components/Footer";
 
-export default function ApplicationConfirmation(){ 
+function ConfirmationContent(){ 
   const searchParams=useSearchParams();
   const reference=searchParams.get("reference");
   return <><Nav/><main className="wrap">
