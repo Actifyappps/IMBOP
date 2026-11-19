@@ -36,3 +36,7 @@ function ConfirmationContent(){
     </div>
   </main><Footer/></>
 }
+
+export default function ApplicationConfirmation(){
+  return <Suspense fallback={<main className="wrap"><div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}><div className="eyebrow">APPLICATION RECEIVED</div><h1>Loading your application confirmation…</h1></div></main>}><ConfirmationContent/></Suspense>;
+}
