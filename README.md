@@ -1699,6 +1699,7 @@ A coherent future repository/documentation structure is:
 │   ├── communications/
 │   ├── media/
 │   ├── pricing/
+│   ├── billing/
 │   ├── delivery/
 │   └── decisions/
 ├── src/
@@ -1706,10 +1707,12 @@ A coherent future repository/documentation structure is:
 │   ├── components/
 │   ├── lib/
 │   └── features/
+│       ├── administration/
 │       └── communications/
 ├── supabase/
 │   ├── migrations/
 │   ├── functions/
+│   │   └── provider adapters/
 │   └── tests/
 ├── tests/
 │   ├── e2e/
@@ -1900,3 +1903,12 @@ Before enabling live financial operations, the relevant migrations, authenticate
 **Know → Discover → Enquire → Connect → Benefit**
 
 **Price → Bill → Pay → Reconcile → Report**
+
+
+## Documentation alignment
+
+The repository structure described here is the target conceptual structure of the integrated platform. Physical feature directories are introduced only when real domain logic warrants them; billing is already a first-class platform domain even where its implementation spans route surfaces, database migrations, RPCs, Edge Functions and shared administration UI.
+
+**GitHub → controlled Supabase database deployment → Vercel build/deployment → verified production runtime.**
+
+GitHub stores reviewed source and migration definitions. Supabase remains the runtime data store. Vercel builds and serves the application.
