@@ -296,3 +296,39 @@ $function$;
 
 revoke execute on function public.get_my_billing_dashboard(uuid) from anon;
 grant execute on function public.get_my_billing_dashboard(uuid) to authenticated;
+
+
+create or replace function public.get_my_billing_payment_instructions(p_institution_id uuid)
+returns jsonb
+language plpgsql
+security invoker
+set search_path to ''
+as $function$
+declare v jsonb;
+begin
+  if not private.has_institution_permission(p_institution_id,'institution_admin') then
+    raise exception 'INSTITUTION_PERMISSION_REQUIRED';
+  end if;
+
+  select jsonb_agg(jsonb_build_object(
+    'account_name',account_name,
+    'bank_name',bank_name,
+    'branch_name',branch_name,
+    'account_number',account_number,
+    'currency',currency,
+    'swift_code',swift_code,
+    'paybill_number',paybill_number,
+    'till_number',till_number,
+    'reference_prefix',reference_prefix,
+    'instructions',instructions
+  ) order by bank_name,account_name)
+  into v
+  from public.billing_settlement_accounts
+  where active=true;
+
+  return coalesce(v,'[]'::jsonb);
+end;
+$function$;
+
+revoke execute on function public.get_my_billing_payment_instructions(uuid) from anon;
+grant execute on function public.get_my_billing_payment_instructions(uuid) to authenticated;
