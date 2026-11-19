@@ -10,6 +10,8 @@ create unique index if not exists institution_applications_application_reference
   on public.institution_applications(application_reference)
   where application_reference is not null;
 
+drop function if exists private.create_public_institution_application_impl(text,text,text,integer,text,text,text,text,text,text,text,text,boolean);
+
 create or replace function private.create_public_institution_application_impl(
   p_institution_name text,
   p_brand_name text,
