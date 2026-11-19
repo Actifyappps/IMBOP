@@ -25,12 +25,10 @@ begin
     select distinct
       mb.user_id,
       u.email,
-      coalesce(nullif(trim(up.first_name || ' ' || up.last_name),''), u.email) as recipient_name
+      u.email as recipient_name
     from public.memberships mb
     join public.membership_roles mr on mr.membership_id=mb.id
-    join public.auth_users_placeholder au on false
     join auth.users u on u.id=mb.user_id
-    left join public.user_profiles up on up.user_id=mb.user_id
     where mb.institution_id=new.id
       and mb.status='active'
       and mr.role_code in ('institution_admin','institution_owner')
