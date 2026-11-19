@@ -13,7 +13,7 @@ export default function Terms() {
           <span>Institutional Members Business &amp; Opportunities Platform</span>
         </div>
         <div className="card">
-          <div className="notice">DRAFT: owner approved, legal validation pending</div>
+          <div className="notice">LEGAL REVIEW PENDING</div>
           <h1 style={{ margin: "12px 0 8px" }}>IMBOP Terms of Use</h1>
           <p>
             By using IMBOP, you agree to comply with these Terms, applicable institutional rules and published
