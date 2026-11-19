@@ -105,8 +105,12 @@ export default function Apply(){
         <label className="label">BUSINESS DESCRIPTION</label><textarea className="textarea" value={member.description} onChange={e=>setMemberField("description",e.target.value)} required/>
         <div className="grid">
           <div><label className="label">SECTOR</label><input className="input" value={member.sector} onChange={e=>setMemberField("sector",e.target.value)} required/></div>
-          <div><label className="label">LOCATION</label><input className="input" value={member.location} onChange={e=>setMemberField("location",e.target.value)} required/></div>
+          <div><label className="label">VALUE CHAIN</label><input className="input" value={member.value_chain} onChange={e=>setMemberField("value_chain",e.target.value)}/></div>
         </div>
+        <label className="label">LOCATION</label><input className="input" value={member.location} onChange={e=>setMemberField("location",e.target.value)} required/>
+        <label className="label">I OFFER</label><textarea className="textarea" value={member.offer} onChange={e=>setMemberField("offer",e.target.value)} placeholder="What can you provide to other members or the market?"/>
+        <label className="label">I NEED</label><textarea className="textarea" value={member.need} onChange={e=>setMemberField("need",e.target.value)} placeholder="What are you looking for from other members or the market?"/>
+        <div className="notice">These are starting points for your IMBOP profile. You can edit and expand your content later; editing does not automatically publish it.</div>
         <button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT MEMBER APPLICATION"}</button>
       </form>}
 
@@ -121,15 +125,18 @@ export default function Apply(){
         </div>
         <div className="grid">
           <div><label className="label">CONTACT NAME</label><input className="input" value={institution.contact_name} onChange={e=>setInstitutionField("contact_name",e.target.value)} required/></div>
-          <div><label className="label">CONTACT ROLE / POSITION</label><input className="input" value={institution.contact_role} onChange={e=>setInstitutionField("contact_role",e.target.value)} placeholder="e.g. Chairperson, Secretary, Manager" required/></div>\n          <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
+          <div><label className="label">CONTACT ROLE / POSITION</label><input className="input" value={institution.contact_role} onChange={e=>setInstitutionField("contact_role",e.target.value)} placeholder="e.g. Chairperson, Secretary, Manager" required/></div>
+          <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
         </div>
         <div className="grid">
           <div><label className="label">CONTACT PHONE</label><input className="input" value={institution.contact_phone} onChange={e=>setInstitutionField("contact_phone",e.target.value)}/></div>
           <div><label className="label">WEBSITE</label><input className="input" type="url" value={institution.website} onChange={e=>setInstitutionField("website",e.target.value)}/></div>
         </div>
-        <label className="label">COUNTY</label><input className="input" value={institution.county} onChange={e=>setInstitutionField("county",e.target.value)} required/>\n        <label className="label">LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} required/>
+        <label className="label">COUNTY</label><input className="input" value={institution.county} onChange={e=>setInstitutionField("county",e.target.value)} required/>
+        <label className="label">LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} required/>
         <label className="label">ABOUT THE INSTITUTION</label><textarea className="textarea" value={institution.description} onChange={e=>setInstitutionField("description",e.target.value)} required/>
-        <label className="label" style={{display:"flex",gap:8,alignItems:"center"}}><input type="checkbox" checked={institution.authorised} onChange={e=>setInstitutionField("authorised",e.target.checked)}/> I am authorised to submit this application on behalf of this institution.</label>\n        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div><button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
+        <label className="label" style={{display:"flex",gap:8,alignItems:"center"}}><input type="checkbox" checked={institution.authorised} onChange={e=>setInstitutionField("authorised",e.target.checked)}/> I am authorised to submit this application on behalf of this institution.</label>
+        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div><button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
       </form>}
 
       {msg && <div className="notice" style={{marginTop:20}}>{msg}</div>}
