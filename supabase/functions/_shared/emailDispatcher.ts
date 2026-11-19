@@ -22,7 +22,7 @@ type RpcClient = {
 
 async function rpc(client: RpcClient, name: string, args: Record<string, unknown>) {
   const { data, error } = await client.rpc(name, args);
-  if (error) throw new Error(error.message || \`RPC \${name} failed\`);
+  if (error) throw new Error(error.message || `RPC ${name} failed`);
   return data;
 }
 
@@ -59,14 +59,14 @@ export async function dispatchOne(client: RpcClient, deliveryId?: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": \`Bearer \${RESEND_API_KEY}\`,
-      "Idempotency-Key": \`imbop-email-delivery-\${item.delivery_id}\`,
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Idempotency-Key": `imbop-email-delivery-${item.delivery_id}`,
     },
     body: JSON.stringify({
       from: IMBOP_EMAIL_FROM,
       to: [item.recipient_email],
       subject: item.subject,
-      html: \`<div style="font-family:Arial,sans-serif;line-height:1.6;">\${htmlFromText(item.body)}</div>\`,
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.6;">${htmlFromText(item.body)}</div>`,
       text: item.body,
       tags: [
         { name: "system", value: "imbop" },
