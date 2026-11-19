@@ -1,14 +1,22 @@
 "use client";
 import Link from "next/link";
+import {useSearchParams} from "next/navigation";
 import Nav from "../../../components/Nav";
 import Footer from "../../../components/Footer";
 
 export default function InstitutionApplicationConfirmation(){
+  const searchParams=useSearchParams();
+  const reference=searchParams.get("reference");
   return <><Nav/><main className="wrap">
     <div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}>
       <div className="eyebrow">APPLICATION RECEIVED</div>
       <h1>Welcome to IMBOP.</h1>
       <p><b>Your Institution Application Is In.</b></p>
+      {reference && <div className="notice" style={{margin:"18px 0",textAlign:"left"}}>
+        <b>APPLICATION REFERENCE</b><br/>
+        <span style={{fontSize:"1.15rem",fontWeight:800,letterSpacing:".04em"}}>{reference}</span>
+        <p style={{margin:"8px 0 0"}}>Keep this reference for your records. It identifies your application while it is under review.</p>
+      </div>}
       <p>Your application to join <b>IMBOP — Institutional Economic Network Infrastructure</b> has been received and is now <b>PENDING REVIEW by SE IMBOP</b>.</p>
       <div className="notice" style={{margin:"24px 0",textAlign:"left"}}>
         <b>What happens next?</b><br/>
