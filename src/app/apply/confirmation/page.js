@@ -1,14 +1,22 @@
 "use client";
 import Link from "next/link";
+import {useSearchParams} from "next/navigation";
 import Nav from "../../../components/Nav";
 import Footer from "../../../components/Footer";
 
 export default function ApplicationConfirmation(){ 
+  const searchParams=useSearchParams();
+  const reference=searchParams.get("reference");
   return <><Nav/><main className="wrap">
     <div className="card confirmation-card" style={{maxWidth:820,margin:"auto",textAlign:"center"}}>
       <div className="eyebrow">APPLICATION RECEIVED</div>
       <h1>Thank You. Your Application Is In.</h1>
       <p>Your Institution Member application has been received and is now <b>PENDING REVIEW</b> by your institution.</p>
+      {reference && <div className="notice" style={{margin:"18px 0",textAlign:"left"}}>
+        <b>APPLICATION REFERENCE</b><br/>
+        <span style={{fontSize:"1.15rem",fontWeight:800,letterSpacing:".04em"}}>{reference}</span>
+        <p style={{margin:"8px 0 0"}}>Keep this reference for your records. It identifies your application while it is under review.</p>
+      </div>}
       <div className="notice" style={{margin:"24px 0",textAlign:"left"}}>
         <b>What happens next?</b><br/>
         Your Institution will review and may publish, return, or reject it. If published, you and your business, offers and needs will become discoverable to your co-members through your Institution's IMBOP Page. Explore. Know. Discover. Enquire. Connect.
