@@ -375,3 +375,12 @@ These channels use the same provider-neutral payment-intent and ledger architect
 ### Reconciliation and idempotency
 
 Provider references, checkout references and payment-intent IDs are persisted. Duplicate callbacks cannot create a second payment because provider finalization uses an idempotency key derived from the payment intent. Amount mismatches, expired intents and overpayments are rejected server-side.
+
+
+## Reconciliation hardening
+
+The M-PESA adapter now also supports an authenticated **status query** for a pending payment intent. It uses the stored CheckoutRequestID and the STK Push Query endpoint, so the institution can explicitly request a fresh provider status when a callback is delayed. A successful query is finalized only when the provider response supplies the amount and M-PESA receipt needed by the ledger; otherwise the intent remains PENDING. Terminal non-success results move the intent to FAILED.
+
+The database also protects the ledger against concurrent allocation races: invoice allocations lock and validate the target invoice/payment, provider references are unique per provider, outstanding calculations count only confirmed payments, and stale payment intents can be expired by a service-only operation.
+
+Safaricom's current documentation describes the Transaction Status API as a secondary reconciliation mechanism when callbacks are not received; for STK Push, the dedicated STK Push Query endpoint is the appropriate query boundary for the stored CheckoutRequestID. citeturn598955search0turn360370search0
