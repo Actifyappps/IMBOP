@@ -120,12 +120,17 @@ begin
   end if;
   if p_amount_kes <= 0 then raise exception 'INVALID_AMOUNT'; end if;
 
+  -- A statement entry must belong to a real import batch.
+  insert into public.billing_bank_statement_imports(settlement_account_id,source_type,status,metadata)
+  values(p_settlement_account_id,'MANUAL','PROCESSING',jsonb_build_object('auto_created',true))
+  returning id into v_id;
+
   insert into public.billing_bank_statement_entries(
     import_id,settlement_account_id,transaction_date,external_reference,narrative,
     amount_kes,direction,counterparty_name,counterparty_account,metadata
   )
   select
-    gen_random_uuid(),p_settlement_account_id,p_transaction_date,p_external_reference,p_narrative,
+    v_id,p_settlement_account_id,p_transaction_date,p_external_reference,p_narrative,
     p_amount_kes,'CREDIT',p_counterparty_name,p_counterparty_account,p_metadata
   where not exists (
     select 1 from public.billing_bank_statement_entries e
@@ -167,6 +172,10 @@ begin
 
   select coalesce(sum(amount_kes),0) into v_confirmed from public.billing_payment_allocations where payment_id=p_payment_id;
   select coalesce(sum(amount_kes),0) into v_refunded from public.billing_payment_refunds where payment_id=p_payment_id and status in ('REQUESTED','CONFIRMED');
+
+  if (select count(distinct invoice_id) from public.billing_payment_allocations where payment_id=p_payment_id) <> 1 then
+    raise exception 'REFUND_REQUIRES_SINGLE_INVOICE_PAYMENT';
+  end if;
 
   if p_amount_kes <= 0 or p_amount_kes + v_refunded > v_confirmed then
     raise exception 'REFUND_EXCEEDS_SETTLED_PAYMENT';
@@ -216,6 +225,13 @@ begin
      set status='CONFIRMED',provider_reference=coalesce(p_provider_reference,provider_reference),
          provider=coalesce(p_provider,provider),confirmed_at=now(),updated_at=now()
    where id=p_refund_id;
+
+  if v_refund.amount_kes = (
+    select coalesce(sum(amount_kes),0) from public.billing_payment_refunds
+    where payment_id=v_refund.payment_id and status='CONFIRMED'
+  ) then
+    update public.billing_payments set status='REFUNDED', updated_at=now() where id=v_refund.payment_id;
+  end if;
 
   insert into public.billing_events(institution_id,event_type,entity_type,entity_id,payload)
   values(v_refund.institution_id,'PAYMENT_REFUND_CONFIRMED','PAYMENT',v_refund.payment_id,
