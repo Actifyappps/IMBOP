@@ -142,6 +142,17 @@ async function start(req: Request, body: any) {
     }
   }
 
+  if (method === "BANK_TRANSFER") {
+    return json({
+      ok: true,
+      payment_intent_id: intent.id,
+      status: "CREATED",
+      provider: "BANK_TRANSFER",
+      payment_reference: intent.checkout_reference,
+      message: "Use the supplied bank settlement instructions and payment reference. IMBOP will reconcile the bank statement against this reference and exact amount."
+    });
+  }
+
   return json({ ok: true, payment_intent_id: intent.id, status: "CREATED", provider: method === "AIRTEL_MONEY" ? "AIRTEL_MONEY" : method, message: "Payment intent created. Provider checkout is pending provider configuration." });
 }
 
