@@ -9,7 +9,7 @@ const money=(n)=>new Intl.NumberFormat("en-KE",{style:"currency",currency:"KES",
 const date=(v)=>v?new Intl.DateTimeFormat("en-KE",{dateStyle:"medium"}).format(new Date(v)):"—";
 
 export default function BillingPage(){
- const [user,setUser]=useState(null),[summary,setSummary]=useState(null),[receipts,setReceipts]=useState([]),[loading,setLoading]=useState(true),[message,setMessage]=useState(""),[selected,setSelected]=useState(null);
+ const [user,setUser]=useState(null),[summary,setSummary]=useState(null),[receipts,setReceipts]=useState([]),[loading,setLoading]=useState(true),[message,setMessage]=useState(""),[selected,setSelected]=useState(null),[paymentIntentId,setPaymentIntentId]=useState(null),[paymentState,setPaymentState]=useState(null);
  const [pay,setPay]=useState({method:"MPESA",provider:"M-PESA",phone:"",amount:""});
  const load=async()=>{
   setLoading(true);setMessage("");
@@ -33,12 +33,16 @@ export default function BillingPage(){
   const amount=Number(pay.amount);\n  const maxPayable=Number(selected?.outstanding_kes||selected?.total_kes||0);\n  if(!amount||amount<=0)return setMessage("Enter a valid payment amount.");\n  if(maxPayable>0&&amount>maxPayable)return setMessage(`You cannot pay more than the outstanding bill of ${money(maxPayable)}.`);
   if(pay.method==="MPESA"&&!pay.phone.trim())return setMessage("Enter the M-Pesa phone number for this payment.");
   setMessage("");setLoading(true);
-  const {data,error}=await supabase.rpc("create_my_billing_payment_intent",{p_institution_id:summary.institution_id,p_amount_kes:amount,p_payment_method:pay.method,p_invoice_id:selected.id,p_provider:pay.provider||null,p_expires_at:null,p_metadata:{phone:pay.phone.trim()||null,source:"institution_billing_ui"}});
+  const {data,error}=await supabase.functions.invoke("imbop-payment-provider",{body:{operation:"start",institution_id:summary.institution_id,invoice_id:selected.id,amount_kes:amount,payment_method:pay.method,phone:pay.phone.trim()||null}});
   setLoading(false);
-  if(error){setMessage(error.message);return}
+  if(error){setMessage(error.message||"Unable to start payment.");return}
+  if(!data?.payment_intent_id){setMessage("Payment request was not created.");return}
+  setPaymentIntentId(data.payment_intent_id);
+  setPaymentState(data.status||"CREATED");
   setSelected(null);
-  setMessage("Payment request created. The live payment-provider checkout will be connected in the next payment-rail integration stage.");
+  setMessage(data.customer_message||data.message||"Payment request created.");
  };
+ useEffect(()=>{if(!paymentIntentId)return;let active=true;const poll=async()=>{const {data,error}=await supabase.from("billing_payment_intents").select("id,status,metadata").eq("id",paymentIntentId).single();if(!active||error)return;setPaymentState(data.status);if(data.status==="SUCCEEDED"){setMessage("Payment confirmed. Your IMBOP receipt is being issued.");await load();}else if(["FAILED","CANCELLED","EXPIRED"].includes(data.status)){setMessage("Payment "+data.status.toLowerCase()+". You can start another payment when ready.");}};poll();const timer=setInterval(poll,4000);return()=>{active=false;clearInterval(timer)}},[paymentIntentId]);
  if(loading)return <><Nav authenticated/><main className="wrap"><div className="card">Loading Billing & Payments…</div></main><Footer/></>;
  if(!user)return <><Nav/><main className="wrap"><div className="card"><div className="eyebrow">IMBOP BILLING & PAYMENTS</div><h1>Sign in to view billing</h1><p>Your institution billing account is available to authorised institution administrators.</p><a className="btn" href="/login?next=/billing">SIGN IN</a></div></main><Footer/></>;
  return <><Nav authenticated/><main className="wrap">
