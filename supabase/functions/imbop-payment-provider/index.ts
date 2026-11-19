@@ -8,8 +8,10 @@ const cors = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: cors });
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || serviceKey;
+const secretKeys = (() => { try { return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}"); } catch { return {}; } })();
+const serviceKey = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const anonKeys = (() => { try { return JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}"); } catch { return {}; } })();
+const anonKey = anonKeys.default || Deno.env.get("SUPABASE_ANON_KEY") || serviceKey;
 const service = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
 function normalizeKenyanPhone(value: string) {
@@ -34,6 +36,28 @@ async function mpesaToken() {
   const data = await res.json();
   if (!data.access_token) throw new Error("MPESA_ACCESS_TOKEN_MISSING");
   return data.access_token as string;
+}
+
+async function mpesaStkQuery(intent: any) {
+  const shortcode = Deno.env.get("MPESA_SHORTCODE");
+  const passkey = Deno.env.get("MPESA_PASSKEY");
+  if (!shortcode || !passkey || !intent.checkout_reference) throw new Error("MPESA_PROVIDER_NOT_CONFIGURED");
+  const token = await mpesaToken();
+  const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
+  const password = btoa(shortcode + passkey + timestamp);
+  const res = await fetch(mpesaBaseUrl() + "/mpesa/stkpushquery/v1/query", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      BusinessShortCode: shortcode,
+      Password: password,
+      Timestamp: timestamp,
+      CheckoutRequestID: intent.checkout_reference,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.errorMessage || data.ResponseDescription || "MPESA_STK_QUERY_FAILED");
+  return data;
 }
 
 async function mpesaStkPush(intent: any, phone: string) {
@@ -121,6 +145,67 @@ async function start(req: Request, body: any) {
   return json({ ok: true, payment_intent_id: intent.id, status: "CREATED", provider: method === "AIRTEL_MONEY" ? "AIRTEL_MONEY" : method, message: "Payment intent created. Provider checkout is pending provider configuration." });
 }
 
+async function mpesaQuery(req: Request, body: any) {
+  const { client } = await getUser(req);
+  const intentId = String(body.payment_intent_id || "");
+  if (!intentId) throw new Error("PAYMENT_INTENT_REQUIRED");
+
+  const { data: intent, error } = await client
+    .from("billing_payment_intents")
+    .select("*")
+    .eq("id", intentId)
+    .single();
+  if (error || !intent) throw new Error("PAYMENT_INTENT_NOT_FOUND");
+  if (intent.provider !== "SAFARICOM_DARAJA" || !intent.checkout_reference) {
+    throw new Error("MPESA_PAYMENT_NOT_QUERYABLE");
+  }
+  if (["SUCCEEDED","FAILED","CANCELLED","EXPIRED"].includes(intent.status)) {
+    return json({ ok: true, payment_intent_id: intent.id, status: intent.status, terminal: true });
+  }
+
+  const result = await mpesaStkQuery(intent);
+  const resultCode = Number(result.ResultCode);
+  const metadataItems = Array.isArray(result.CallbackMetadata?.Item) ? result.CallbackMetadata.Item : [];
+  const getItem = (name: string) => metadataItems.find((x: any) => x.Name === name)?.Value;
+  const amount = Number(getItem("Amount"));
+  const receipt = getItem("MpesaReceiptNumber") || getItem("MpesaReceiptNumber");
+  const queryMetadata = {
+    query_response_code: result.ResponseCode ?? null,
+    query_result_code: Number.isFinite(resultCode) ? resultCode : null,
+    query_result_desc: result.ResultDesc || null,
+    query_checked_at: new Date().toISOString(),
+  };
+
+  if (Number.isFinite(resultCode) && resultCode === 0 && Number.isFinite(amount) && receipt) {
+    const { error: finalizeError } = await service.rpc("platform_finalize_payment_intent_from_provider", {
+      p_payment_intent_id: intent.id,
+      p_provider: "SAFARICOM_DARAJA",
+      p_provider_reference: String(receipt),
+      p_amount_kes: amount,
+      p_received_at: new Date().toISOString(),
+      p_metadata: { ...queryMetadata, checkout_request_id: intent.checkout_reference, reconciliation: true },
+    });
+    if (finalizeError) throw finalizeError;
+    return json({ ok: true, payment_intent_id: intent.id, status: "SUCCEEDED", reconciled: true });
+  }
+
+  if (Number.isFinite(resultCode) && resultCode !== 0) {
+    await service.rpc("platform_fail_payment_intent", {
+      p_payment_intent_id: intent.id,
+      p_status: "FAILED",
+      p_metadata: queryMetadata,
+    });
+    return json({ ok: true, payment_intent_id: intent.id, status: "FAILED", reconciled: true });
+  }
+
+  await service.from("billing_payment_intents").update({
+    metadata: { ...(intent.metadata || {}), ...queryMetadata },
+    updated_at: new Date().toISOString(),
+  }).eq("id", intent.id);
+
+  return json({ ok: true, payment_intent_id: intent.id, status: "PENDING", reconciled: false });
+}
+
 async function mpesaCallback(body: any) {
   const callback = body?.Body?.stkCallback;
   if (!callback?.CheckoutRequestID) throw new Error("INVALID_MPESA_CALLBACK");
@@ -166,6 +251,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const op = body.operation || "start";
     if (op === "mpesa_callback") return await mpesaCallback(body);
+    if (op === "mpesa_query") return await mpesaQuery(req, body);
     if (op === "start") return await start(req, body);
     return json({ error: "UNKNOWN_OPERATION" }, 400);
   } catch (e) {
