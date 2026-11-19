@@ -1,7 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import Image from "next/image";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import {supabase} from "../lib/supabase";
