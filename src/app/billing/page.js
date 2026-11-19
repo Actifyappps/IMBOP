@@ -9,7 +9,7 @@ const money=(n)=>new Intl.NumberFormat("en-KE",{style:"currency",currency:"KES",
 const date=(v)=>v?new Intl.DateTimeFormat("en-KE",{dateStyle:"medium"}).format(new Date(v)):"—";
 
 export default function BillingPage(){
- const [user,setUser]=useState(null),[summary,setSummary]=useState(null),[receipts,setReceipts]=useState([]),[loading,setLoading]=useState(true),[message,setMessage]=useState(""),[selected,setSelected]=useState(null),[paymentIntentId,setPaymentIntentId]=useState(null),[paymentState,setPaymentState]=useState(null);
+ const [user,setUser]=useState(null),[summary,setSummary]=useState(null),[receipts,setReceipts]=useState([]),[loading,setLoading]=useState(true),[message,setMessage]=useState(""),[selected,setSelected]=useState(null),[paymentIntentId,setPaymentIntentId]=useState(null),[paymentState,setPaymentState]=useState(null),[paymentMethod,setPaymentMethod]=useState(null),[latestReceipt,setLatestReceipt]=useState(null);
  const [pay,setPay]=useState({method:"MPESA",provider:"M-PESA",phone:"",amount:""});
  const load=async()=>{
   setLoading(true);setMessage("");
@@ -20,7 +20,7 @@ export default function BillingPage(){
   const id=ctx.data.institution_id;
   const [s,r]=await Promise.all([supabase.rpc("get_my_billing_dashboard",{p_institution_id:id}),supabase.rpc("get_my_billing_receipts",{p_institution_id:id})]);
   if(s.error)setMessage(s.error.message);else setSummary({...s.data,institution_id:id});
-  if(r.error)setMessage(m=>m||r.error.message);else setReceipts(r.data||[]);
+  if(r.error)setMessage(m=>m||r.error.message);else { setReceipts(r.data||[]); if(r.data?.length) setLatestReceipt(r.data[0]); }
   setLoading(false);
  };
  useEffect(()=>{load()},[]);
@@ -39,10 +39,12 @@ export default function BillingPage(){
   if(!data?.payment_intent_id){setMessage("Payment request was not created.");return}
   setPaymentIntentId(data.payment_intent_id);
   setPaymentState(data.status||"CREATED");
+  setPaymentMethod(pay.method);
   setSelected(null);
   setMessage(data.customer_message||data.message||"Payment request created.");
  };
- useEffect(()=>{if(!paymentIntentId)return;let active=true;const poll=async()=>{const {data,error}=await supabase.from("billing_payment_intents").select("id,status,metadata").eq("id",paymentIntentId).single();if(!active||error)return;setPaymentState(data.status);if(data.status==="SUCCEEDED"){setMessage("Payment confirmed. Your IMBOP receipt is being issued.");await load();}else if(["FAILED","CANCELLED","EXPIRED"].includes(data.status)){setMessage("Payment "+data.status.toLowerCase()+". You can start another payment when ready.");}};poll();const timer=setInterval(poll,4000);return()=>{active=false;clearInterval(timer)}},[paymentIntentId]);
+ useEffect(()=>{if(!paymentIntentId)return;let active=true;const poll=async()=>{const {data,error}=await supabase.from("billing_payment_intents").select("id,status,metadata").eq("id",paymentIntentId).single();if(!active||error)return;setPaymentState(data.status);if(data.status==="SUCCEEDED"){setMessage("Payment confirmed. Your IMBOP receipt has been issued.");await load();}else if(["FAILED","CANCELLED","EXPIRED"].includes(data.status)){setMessage("Payment "+data.status.toLowerCase()+". You can start another payment when ready.");}};poll();const timer=setInterval(poll,4000);return()=>{active=false;clearInterval(timer)}},[paymentIntentId]);
+ const queryProvider=async()=>{if(!paymentIntentId||paymentMethod!=="MPESA")return;setMessage("Checking M-PESA payment status…");const {data,error}=await supabase.functions.invoke("imbop-payment-provider",{body:{operation:"mpesa_query",payment_intent_id:paymentIntentId}});if(error){setMessage(error.message||"Unable to check M-PESA status.");return}setPaymentState(data?.status||"PENDING");setMessage(data?.reconciled?"M-PESA payment reconciled and confirmed.":"M-PESA is still processing. IMBOP will continue waiting for confirmation.");};
  if(loading)return <><Nav authenticated/><main className="wrap"><div className="card">Loading Billing & Payments…</div></main><Footer/></>;
  if(!user)return <><Nav/><main className="wrap"><div className="card"><div className="eyebrow">IMBOP BILLING & PAYMENTS</div><h1>Sign in to view billing</h1><p>Your institution billing account is available to authorised institution administrators.</p><a className="btn" href="/login?next=/billing">SIGN IN</a></div></main><Footer/></>;
  return <><Nav authenticated/><main className="wrap">
@@ -53,6 +55,7 @@ export default function BillingPage(){
    <article className="admin-card"><div className="eyebrow">OUTSTANDING</div><h2>{money(outstanding)}</h2><p>{summary?.compliance_status||"—"}</p>{canPay&&<button className="admin-btn admin-btn-primary" onClick={()=>startPay(invoice)}>PAY BILL</button>}</article>
    <article className="admin-card"><div className="eyebrow">LATEST INVOICE</div><h2>{invoice?.invoice_number||"No invoice"}</h2><p>{invoice?date(invoice.period_start)+" — "+date(invoice.period_end):"Your invoices will appear here."}</p>{invoice&&<button className="admin-btn" onClick={()=>setSelected({...invoice,viewOnly:true})}>VIEW BILL</button>}</article>
   </section>
+  {paymentIntentId&&<section className="card"><div className="eyebrow">PAYMENT STATUS</div><h2>{paymentState||"CREATED"}</h2><p>Payment request <b>{paymentIntentId}</b> is being tracked by IMBOP.</p>{paymentState==="PENDING"&&paymentMethod==="MPESA"&&<button className="admin-btn" onClick={queryProvider}>CHECK M-PESA STATUS</button>}{paymentState==="SUCCEEDED"&&latestReceipt&&<div className="notice"><div className="eyebrow">RECEIPT ISSUED</div><h3>{latestReceipt.receipt_number}</h3><p>{money(latestReceipt.amount_kes)} · {date(latestReceipt.issued_at)}</p></div>}{["FAILED","CANCELLED","EXPIRED"].includes(paymentState)&&<button className="admin-btn admin-btn-primary" onClick={()=>{setPaymentIntentId(null);setPaymentState(null);}}>START ANOTHER PAYMENT</button>}</section>}
   <section className="admin-section"><div className="eyebrow">PAYMENT HISTORY</div><h2>Receipts</h2><p>Confirmed payments and issued receipts for this institution.</p>{receipts.length?<div className="admin-grid">{receipts.map(r=><article className="admin-card" key={r.receipt_id}><div className="eyebrow">RECEIPT</div><h3>{r.receipt_number}</h3><p><b>{money(r.amount_kes)}</b> · {r.payment_method||"—"}{r.provider?" · "+r.provider:""}</p><p>{date(r.issued_at)}{r.provider_reference?" · "+r.provider_reference:""}</p></article>)}</div>:<div className="card empty-state"><p>No confirmed payments or receipts yet.</p></div>}</section>
   <section className="card"><div className="eyebrow">PAYMENT CHANNELS</div><p><b>M-PESA · AIRTEL MONEY · BANK TRANSFER · CARD</b></p><p>You can pay the full outstanding balance or make a smaller payment now, subject to the invoice balance. For mobile-money payments, IMBOP will prompt the selected phone number when the live provider rail is enabled.</p><p>The provider connection will be introduced only after the internal billing ledger and payment flow pass review.</p></section>
  </main>
