@@ -5,15 +5,16 @@ import Footer from "../../components/Footer";
 import {supabase} from "../../lib/supabase";
 
 const empty={name:"",email:"",phone:"",business:"",description:"",sector:"",value_chain:"",location:"",offer:"",need:""};
-const instEmpty={institution_name:"",legal_name:"",registration_number:"",registration_authority:"",institution_type:"",contact_name:"",contact_role:"",contact_email:"",contact_phone:"",membership_size:"",website:"",county:"",location:"",description:"",authorised:true};
+const instEmpty={institution_name:"",brand_name:"",institution_type:"",membership_size:"",contact_name:"",contact_role:"",contact_email:"",contact_phone:"",website:"",county:"",location:"",description:"",authorised:true};
 
 export default function Apply(){
   const [type,setType]=useState("");
   const [institutions,setInstitutions]=useState([]);
-  const [institutionId,setInstitutionId]=useState("");
   const [institutionName,setInstitutionName]=useState("");
   const [member,setMember]=useState(empty);
   const [institution,setInstitution]=useState(instEmpty);
+  const [logoFile,setLogoFile]=useState(null);
+  const [logoPreview,setLogoPreview]=useState("");
   const [msg,setMsg]=useState("");
   const [busy,setBusy]=useState(false);
 
@@ -22,14 +23,28 @@ export default function Apply(){
       .then(({data,error})=>{ if(error)setMsg(error.message); else setInstitutions((data||[]).map(x=>({id:x.institution_id,name:x.institution_name}))); });
   },[]);
 
+  useEffect(()=>()=>{ if(logoPreview) URL.revokeObjectURL(logoPreview); },[logoPreview]);
+
   const setMemberField=(k,v)=>setMember(x=>({...x,[k]:v}));
   const setInstitutionField=(k,v)=>setInstitution(x=>({...x,[k]:v}));
+
+  function chooseLogo(file){
+    if(logoPreview) URL.revokeObjectURL(logoPreview);
+    setLogoFile(null);
+    setLogoPreview("");
+    if(!file)return;
+    if(!["image/jpeg","image/png","image/webp"].includes(file.type))return setMsg("Logo must be JPG, PNG or WEBP.");
+    if(file.size>1048576)return setMsg("Logo must be 1 MB or smaller.");
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+    setMsg("");
+  }
 
   async function submitMember(e){
     e.preventDefault(); setBusy(true); setMsg("");
     const matchedInstitution=institutions.find(x=>x.name.trim().toLowerCase()===institutionName.trim().toLowerCase());
     if(!matchedInstitution){setBusy(false);return setMsg("Please select or enter the name of an institution currently participating in IMBOP.");}
-    const {data,error}=await supabase.rpc("create_public_member_application",{
+    const {error}=await supabase.rpc("create_public_member_application",{
       p_institution_id:matchedInstitution.id,
       p_applicant_name:member.name.trim(),
       p_email:member.email.trim(),
@@ -47,30 +62,50 @@ export default function Apply(){
 
   async function submitInstitution(e){
     e.preventDefault(); setBusy(true); setMsg("");
-    const row={
-      institution_name:institution.institution_name.trim(), legal_name:institution.legal_name.trim()||null,
-      institution_type:institution.institution_type.trim()||null, contact_name:institution.contact_name.trim(),
-      contact_email:institution.contact_email.trim(), contact_phone:institution.contact_phone.trim()||null,
-      membership_size:institution.membership_size===""?null:Number(institution.membership_size),
-      website:institution.website.trim()||null, location:institution.location.trim()||null,
-      description:institution.description.trim()||null,
-      application_payload:{source:"PUBLIC_IMBOP_APPLICATION",applicant_type:"INSTITUTION",registration_number:institution.registration_number,registration_authority:institution.registration_authority,contact_role:institution.contact_role,county:institution.county,authorised_applicant:institution.authorised},
-      status:"SUBMITTED"
-    };
+
+    if(logoFile && !["image/jpeg","image/png","image/webp"].includes(logoFile.type)){
+      setBusy(false); return setMsg("Logo must be JPG, PNG or WEBP.");
+    }
+    if(logoFile && logoFile.size>1048576){
+      setBusy(false); return setMsg("Logo must be 1 MB or smaller.");
+    }
+
     const {data,error}=await supabase.rpc("create_public_institution_application",{
-      p_institution_name:row.institution_name,
-      p_legal_name:row.legal_name,
-      p_institution_type:row.institution_type,
-      p_contact_name:row.contact_name,
-      p_contact_email:row.contact_email,
-      p_contact_phone:row.contact_phone,
-      p_membership_size:row.membership_size,
-      p_website:row.website,
-      p_location:row.location,
-      p_description:row.description
+      p_institution_name:institution.institution_name.trim(),
+      p_brand_name:institution.brand_name.trim()||null,
+      p_institution_type:institution.institution_type.trim(),
+      p_membership_size:Number(institution.membership_size),
+      p_contact_name:institution.contact_name.trim(),
+      p_contact_role:institution.contact_role.trim(),
+      p_contact_email:institution.contact_email.trim(),
+      p_contact_phone:institution.contact_phone.trim(),
+      p_website:institution.website.trim()||null,
+      p_hq_county:institution.county.trim(),
+      p_hq_location:institution.location.trim(),
+      p_description:institution.description.trim(),
+      p_authorised:institution.authorised
     });
+
+    if(error){setBusy(false);return setMsg(error.message);}
+
+    const application=data?.[0];
+    if(logoFile && application?.application_id && application?.logo_upload_token){
+      const extension=logoFile.type==="image/jpeg"?"jpg":logoFile.type.split("/")[1];
+      const path="applications/"+application.application_id+"/"+application.logo_upload_token+"."+extension;
+      const upload=await supabase.storage.from("imbop-application-logos").upload(path,logoFile,{contentType:logoFile.type,cacheControl:"3600",upsert:false});
+      if(!upload.error){
+        const attached=await supabase.rpc("attach_public_institution_application_logo",{
+          p_application_id:application.application_id,
+          p_logo_token:application.logo_upload_token,
+          p_logo_storage_path:path
+        });
+        if(attached.error)setMsg("Application submitted. Your logo could not be attached, but you can add it during readiness.");
+      }else{
+        setMsg("Application submitted. Your logo could not be uploaded, but you can add it during readiness.");
+      }
+    }
+
     setBusy(false);
-    if(error)return setMsg(error.message);
     window.location.href="/apply/institution-confirmation";
   }
 
@@ -81,8 +116,8 @@ export default function Apply(){
       <div className="notice pricing-disclosure"><b>IMBOP PRICING:</b> Institutions and their first 50 IMBOP Onboards are free. Beyond 50, the Institution moves to a numbers-based plan. <b>Individual Institution Members are not billed.</b> See <a href="/plans"><b>IMBOP Plans &amp; Pricing</b></a>.</div>
 
       <div className="actions" style={{margin:"20px 0"}}>
-        <button className={`btn ${type==="institution"?"":"alt"}`} onClick={()=>{setType("institution");setMsg("")}}>INSTITUTION</button>
-        <button className={`btn ${type==="member"?"":"alt"}`} onClick={()=>{setType("member");setMsg("")}}>INSTITUTION MEMBER</button>
+        <button className={"btn "+(type==="institution"?"":"alt")} onClick={()=>{setType("institution");setMsg("");}}>INSTITUTION</button>
+        <button className={"btn "+(type==="member"?"":"alt")} onClick={()=>{setType("member");setMsg("");}}>INSTITUTION MEMBER</button>
       </div>
       <p><b>Application ≠ Publication.</b> Submission starts a review process. Only an authorised decision-maker can publish a record.</p>
 
@@ -91,7 +126,7 @@ export default function Apply(){
       {type==="member" && <form onSubmit={submitMember}>
         <label className="label">YOUR INSTITUTION</label>
         <input className="input" list="imbop-institutions" value={institutionName}
-          onChange={e=>{const value=e.target.value;setInstitutionName(value);const match=institutions.find(x=>x.name.toLowerCase()===value.trim().toLowerCase());setInstitutionId(match?.id||"");}}
+          onChange={e=>setInstitutionName(e.target.value)}
           placeholder="Write or select your institution" required/>
         <datalist id="imbop-institutions">{institutions.map(x=><option key={x.id} value={x.name}/>)}</datalist>
         <div className="grid">
@@ -115,28 +150,49 @@ export default function Apply(){
       </form>}
 
       {type==="institution" && <form onSubmit={submitInstitution}>
+        <div className="eyebrow" style={{marginTop:8}}>ABOUT YOUR INSTITUTION</div>
         <div className="grid">
           <div><label className="label">INSTITUTION NAME</label><input className="input" value={institution.institution_name} onChange={e=>setInstitutionField("institution_name",e.target.value)} required/></div>
-          <div><label className="label">LEGAL NAME</label><input className="input" value={institution.legal_name} onChange={e=>setInstitutionField("legal_name",e.target.value)}/></div>
+          <div><label className="label">BRAND NAME <span style={{opacity:.6}}>(OPTIONAL)</span></label><input className="input" value={institution.brand_name} onChange={e=>setInstitutionField("brand_name",e.target.value)} placeholder="If different from the institution name"/></div>
         </div>
         <div className="grid">
-          <div><label className="label">INSTITUTION TYPE</label><input className="input" value={institution.institution_type} onChange={e=>setInstitutionField("institution_type",e.target.value)} required/></div>
-          <div><label className="label">CURRENT MEMBERSHIP</label><input className="input" type="number" min="0" value={institution.membership_size} onChange={e=>setInstitutionField("membership_size",e.target.value)}/></div>
+          <div>
+            <label className="label">LOGO <span style={{opacity:.6}}>(OPTIONAL)</span></label>
+            <input className="input" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>chooseLogo(e.target.files?.[0]||null)}/>
+            <div style={{fontSize:12,opacity:.7,marginTop:6}}>JPG, PNG or WEBP · max 1 MB</div>
+            {logoPreview && <img src={logoPreview} alt="Institution logo preview" style={{display:"block",maxWidth:120,maxHeight:120,objectFit:"contain",marginTop:10,borderRadius:8}}/>}
+          </div>
+          <div><label className="label">INSTITUTION TYPE</label><input className="input" value={institution.institution_type} onChange={e=>setInstitutionField("institution_type",e.target.value)} placeholder="e.g. Cooperative, SACCO, Chama, Business Network" required/></div>
         </div>
+        <div className="grid">
+          <div><label className="label">CURRENT MEMBERSHIP ESTIMATE</label><input className="input" type="number" min="0" step="1" value={institution.membership_size} onChange={e=>setInstitutionField("membership_size",e.target.value)} required/></div>
+          <div><label className="label">WEBSITE <span style={{opacity:.6}}>(OPTIONAL)</span></label><input className="input" type="url" value={institution.website} onChange={e=>setInstitutionField("website",e.target.value)}/></div>
+        </div>
+
+        <div className="eyebrow" style={{marginTop:26}}>WHERE YOU ARE</div>
+        <div className="grid">
+          <div><label className="label">HQ COUNTY</label><input className="input" value={institution.county} onChange={e=>setInstitutionField("county",e.target.value)} required/></div>
+          <div><label className="label">HQ LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} placeholder="Town / centre / area" required/></div>
+        </div>
+
+        <div className="eyebrow" style={{marginTop:26}}>YOUR AUTHORISED CONTACT</div>
         <div className="grid">
           <div><label className="label">CONTACT NAME</label><input className="input" value={institution.contact_name} onChange={e=>setInstitutionField("contact_name",e.target.value)} required/></div>
           <div><label className="label">CONTACT ROLE / POSITION</label><input className="input" value={institution.contact_role} onChange={e=>setInstitutionField("contact_role",e.target.value)} placeholder="e.g. Chairperson, Secretary, Manager" required/></div>
-          <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
         </div>
         <div className="grid">
-          <div><label className="label">CONTACT PHONE</label><input className="input" value={institution.contact_phone} onChange={e=>setInstitutionField("contact_phone",e.target.value)}/></div>
-          <div><label className="label">WEBSITE</label><input className="input" type="url" value={institution.website} onChange={e=>setInstitutionField("website",e.target.value)}/></div>
+          <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
+          <div><label className="label">CONTACT PHONE</label><input className="input" value={institution.contact_phone} onChange={e=>setInstitutionField("contact_phone",e.target.value)} required/></div>
         </div>
-        <label className="label">COUNTY</label><input className="input" value={institution.county} onChange={e=>setInstitutionField("county",e.target.value)} required/>
-        <label className="label">LOCATION</label><input className="input" value={institution.location} onChange={e=>setInstitutionField("location",e.target.value)} required/>
-        <label className="label">ABOUT THE INSTITUTION</label><textarea className="textarea" value={institution.description} onChange={e=>setInstitutionField("description",e.target.value)} required/>
-        <label className="label" style={{display:"flex",gap:8,alignItems:"center"}}><input type="checkbox" checked={institution.authorised} onChange={e=>setInstitutionField("authorised",e.target.checked)}/> I am authorised to submit this application on behalf of this institution.</label>
-        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div><button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
+
+        <div className="eyebrow" style={{marginTop:26}}>ABOUT THE INSTITUTION</div>
+        <textarea className="textarea" value={institution.description} onChange={e=>setInstitutionField("description",e.target.value)} placeholder="Briefly tell us who the institution is, who it serves and what it does." required/>
+
+        <label className="label" style={{display:"flex",gap:8,alignItems:"flex-start",marginTop:18}}><input type="checkbox" checked={institution.authorised} onChange={e=>setInstitutionField("authorised",e.target.checked)} required/> <span>I am authorised to submit this application on behalf of this institution.</span></label>
+
+        <div className="notice" style={{marginTop:18}}><b>APPLICATION ≠ PUBLICATION.</b> This application starts SE IMBOP review. Registration, legal evidence, governance and other readiness information are handled later if the application progresses.</div>
+        <div className="notice pricing-disclosure"><b>Institution billing:</b> The Institution is the IMBOP customer. The first 50 IMBOP Onboards are free; beyond 50, numbers-based institutional pricing applies. The first transition month uses a discounted minimum of <b>KES 5,000</b>.</div>
+        <button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
       </form>}
 
       {msg && <div className="notice" style={{marginTop:20}}>{msg}</div>}
