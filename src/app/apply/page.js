@@ -44,7 +44,7 @@ export default function Apply(){
     e.preventDefault(); setBusy(true); setMsg("");
     const matchedInstitution=institutions.find(x=>x.name.trim().toLowerCase()===institutionName.trim().toLowerCase());
     if(!matchedInstitution){setBusy(false);return setMsg("Please select or enter the name of an institution currently participating in IMBOP.");}
-    const {error}=await supabase.rpc("create_public_member_application",{
+    const {data,error}=await supabase.rpc("create_public_member_application",{
       p_institution_id:matchedInstitution.id,
       p_applicant_name:member.name.trim(),
       p_email:member.email.trim(),
@@ -57,7 +57,10 @@ export default function Apply(){
     });
     setBusy(false);
     if(error)return setMsg(error.message);
-    window.location.href="/apply/confirmation";
+    const applicationReference=data?.[0]?.application_reference;
+    window.location.href=applicationReference
+      ? "/apply/confirmation?reference="+encodeURIComponent(applicationReference)
+      : "/apply/confirmation";
   }
 
   async function submitInstitution(e){
