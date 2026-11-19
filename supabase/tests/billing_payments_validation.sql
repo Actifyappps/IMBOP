@@ -39,10 +39,12 @@ begin
       'platform_expire_stale_payment_intents',
       'platform_record_bank_statement_entry',
       'platform_request_payment_refund',
-      'platform_confirm_payment_refund'
+      'platform_confirm_payment_refund',
+      'platform_reconcile_bank_statement_entry',
+      'platform_mark_bank_statement_import_status'
     );
-  if v_count < 11 then
-    raise exception 'BILLING_FUNCTIONS_MISSING: expected at least 11, found %',v_count;
+  if v_count < 13 then
+    raise exception 'BILLING_FUNCTIONS_MISSING: expected at least 13, found %',v_count;
   end if;
 end $$;
 
@@ -61,6 +63,17 @@ begin
     raise exception 'BILLING_UNIQUENESS_GUARDS_MISSING: expected 3, found %',v_count;
   end if;
 end $$;
+
+-- Bank-transfer reconciliation must have a lookup index.
+do $
+declare v_count integer;
+begin
+  select count(*) into v_count
+  from pg_indexes
+  where schemaname='public'
+    and indexname='billing_payment_intents_bank_reference_idx';
+  if v_count <> 1 then raise exception 'BANK_REFERENCE_INDEX_MISSING'; end if;
+end $;
 
 -- Payment/refund state constraints must exist.
 do $$
