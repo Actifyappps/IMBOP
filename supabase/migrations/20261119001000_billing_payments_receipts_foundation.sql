@@ -323,3 +323,62 @@ $function$;
 
 revoke execute on function public.create_my_billing_payment_intent(uuid,numeric,text,uuid,text,timestamptz,jsonb) from public,anon;
 grant execute on function public.create_my_billing_payment_intent(uuid,numeric,text,uuid,text,timestamptz,jsonb) to authenticated;
+
+create or replace function public.get_my_billing_dashboard(p_institution_id uuid)
+returns jsonb
+language plpgsql
+security invoker
+set search_path to ''
+as $function$
+declare
+  v jsonb;
+begin
+  if not private.has_institution_permission(p_institution_id,'institution_admin') then
+    raise exception 'INSTITUTION_PERMISSION_REQUIRED';
+  end if;
+
+  select jsonb_build_object(
+    'institution_id',b.institution_id,
+    'institution_name',inst.name,
+    'plan_code',b.plan_code,
+    'member_limit',b.member_limit,
+    'monthly_fee_kes',b.monthly_fee_kes,
+    'billing_status',b.billing_status,
+    'compliance_status',b.compliance_status,
+    'pilot_end_date',b.pilot_end_date,
+    'next_due_date',b.next_due_date,
+    'imbop_onboards',(select count(*) from public.memberships m where m.institution_id=b.institution_id and m.status='active'),
+    'outstanding_kes',coalesce((
+      select sum(i.total_kes - coalesce((select sum(a.amount_kes) from public.billing_payment_allocations a where a.invoice_id=i.id),0))
+        from public.billing_invoices i
+       where i.institution_id=b.institution_id
+         and i.status in ('ISSUED','PARTIALLY_PAID','OVERDUE')
+    ),0),
+    'latest_invoice',(
+      select jsonb_build_object(
+        'id',i.id,
+        'invoice_number',i.invoice_number,
+        'plan_code',i.plan_code,
+        'period_start',i.period_start,
+        'period_end',i.period_end,
+        'due_date',i.due_date,
+        'total_kes',i.total_kes,
+        'status',i.status,
+        'outstanding_kes',i.total_kes-coalesce((select sum(a.amount_kes) from public.billing_payment_allocations a where a.invoice_id=i.id),0)
+      )
+      from public.billing_invoices i
+      where i.institution_id=b.institution_id
+      order by i.issued_at desc,i.created_at desc
+      limit 1
+    )
+  ) into v
+  from public.institution_billing_accounts b
+  join public.institutions inst on inst.id=b.institution_id
+  where b.institution_id=p_institution_id;
+
+  return coalesce(v,'{}'::jsonb);
+end;
+$function$;
+
+revoke execute on function public.get_my_billing_dashboard(uuid) from anon;
+grant execute on function public.get_my_billing_dashboard(uuid) to authenticated;
