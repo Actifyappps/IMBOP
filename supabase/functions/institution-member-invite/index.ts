@@ -19,8 +19,8 @@ Deno.serve(async(req)=>{
   const app=appRows[0];
   if(app.status!=="PUBLISHED")return json({error:"The member application must be PUBLISHED before an account can be invited"},400);
 
-  const perm=await rest("rpc/has_institution_permission",{method:"POST",body:JSON.stringify({p_institution_id:app.institution_id,p_permission_code:"membership_manage"})});
-  if(perm!==true)return json({error:"Institution membership management permission required"},403);
+  const admin=await rest("rpc/is_institution_admin",{method:"POST",body:JSON.stringify({target_institution_id:app.institution_id})});
+  if(admin!==true)return json({error:"Institution administrator permission required"},403);
 
   const roleRows=await rest("roles?select=id&scope=eq.institution&code=eq.member&limit=1");
   if(!roleRows.length)return json({error:"Member role is not configured"},500);
