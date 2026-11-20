@@ -36,7 +36,6 @@ declare
   a public.institution_applications;
   v_logo_token text;
   v_reference text;
-  v_constraint_name text;
 begin
   if p_submission_idempotency_key is null then
     raise exception 'SUBMISSION_IDEMPOTENCY_KEY_REQUIRED';
@@ -154,17 +153,7 @@ begin
   return query select a.id,a.application_reference,a.status,a.logo_upload_token;
 exception
   when check_violation then
-    get stacked diagnostics v_constraint_name = constraint_name;
-    raise exception '%',
-      case v_constraint_name
-        when 'institution_applications_name_length' then 'Institution name must be between 2 and 200 characters.'
-        when 'institution_applications_contact_name_length' then 'Contact name must be between 2 and 200 characters.'
-        when 'institution_applications_email_format' then 'Please enter a valid contact email address.'
-        when 'institution_applications_phone_format' then 'Please enter a valid contact phone number (digits, spaces, +, parentheses or hyphens only).'
-        when 'institution_applications_membership_size_valid' then 'Please enter a valid current membership estimate.'
-        when 'institution_applications_payload_size' then 'The application details are too large. Please shorten the description and try again.'
-        else 'Please check the details entered and try again.'
-      end;
+    raise exception 'Please check the details you entered and try again.';
 end;
 $$;
 
