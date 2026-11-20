@@ -65,7 +65,7 @@ export default function AdminConsole({section="dashboard"}) {
     const {data,error}=await supabase.rpc("review_institution_application",{p_application_id:id,p_action:action==="RETURN"?"RETURNED":action==="REJECT"?"REJECTED":action,p_notes:notes||null});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.message||data?.error||"Institution application action failed.");setWorking(null);return}
-    setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved. Next: complete READINESS (configuration + administrator), then ACTIVATE to make the Institution public in Discover.":"Institution application decision recorded.");
+    setMessage(action==="REVIEW"?"Review started. Next: check the application, then APPROVE, RETURN, or REJECT it.":action==="APPROVE"?"Institution application approved. Next: complete READINESS (configuration + administrator), then ACTIVATE to make the Institution public in Discover.":action==="RETURN"?"Application returned for correction. The recorded reason is available for the applicant/institutional record.":"Application rejected. The recorded reason has been saved for the institutional record.");
     setDrawer(null); await loadData(); setWorking(null);
   }
 
@@ -73,7 +73,7 @@ export default function AdminConsole({section="dashboard"}) {
     setWorking(id); setMessage("");
     const {error}=await supabase.rpc("platform_configure_institution",{p_institution_id:id});
     if(error){setMessage(error.message);setWorking(null);return}
-    setMessage("Institution configuration completed and audited.");
+    setMessage("Configuration completed and audited. Next: ensure at least one active Institution Administrator is in place, then check READINESS.");
     setDrawer(null); await loadData(); setWorking(null);
   }
 
@@ -91,7 +91,7 @@ export default function AdminConsole({section="dashboard"}) {
     const r=await fetch(base+"/functions/v1/platform-institution-admin-invite",{method:"POST",headers:{Authorization:"Bearer "+session.access_token,apikey:anon,"Content-Type":"application/json"},body:JSON.stringify({institution_id:id,email:email.trim(),first_name:first.trim(),last_name:last.trim()})});
     const data=await r.json().catch(()=>({}));
     if(!r.ok||!data?.ok){setMessage(data?.error||"Administrator assignment failed.");setWorking(null);return}
-    setMessage(data.invited?"Administrator invitation sent and active administrator assignment created.":"Existing user assigned as institution administrator.");
+    setMessage(data.invited?"Administrator invitation sent. Next: complete the administrator activation so the Institution can pass READINESS.":"Existing user assigned as Institution Administrator. Next: confirm the Institution is READY, then ACTIVATE it.");
     setDrawer(null); await loadData(); setWorking(null);
   }
 
@@ -102,7 +102,7 @@ export default function AdminConsole({section="dashboard"}) {
     const {data,error}=await supabase.rpc("manage_institution",{p_institution_id:id,p_action:action,p_reason:reason.trim()});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.message||data?.error||"Institution lifecycle action failed.");setWorking(null);return}
-    setMessage(action+" completed and audited.");setDrawer(null);await loadData();setWorking(null);
+    setMessage(action==="ACTIVATE"?"Institution activated. It is now eligible to appear publicly in Discover.":action==="PAUSE"?"Institution paused. It is no longer operating as active until resumed.":action==="SUSPEND"?"Institution suspended. Public operation is restricted until the suspension is lifted.":action==="RESTORE"?"Institution restored. Its records are preserved and its lifecycle can now be managed again.":action==="SHUT"?"Institution shut down. The action has been recorded in the audit trail.":"Institution lifecycle action completed and audited.");setDrawer(null);await loadData();setWorking(null);
   }
 
   async function dispatchOneQueuedEmail() {
@@ -147,7 +147,7 @@ export default function AdminConsole({section="dashboard"}) {
     const {data,error}=await supabase.rpc("retry_platform_email_delivery",{p_delivery_id:id});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.status==="RETRY_LIMIT_REACHED"?"Retry limit reached for this delivery.":data?.status||"Delivery could not be queued.");setWorking(null);return}
-    setMessage("Email delivery safely returned to the queue.");
+    setMessage("Email delivery safely returned to the queue. The dispatcher will retry it according to the delivery policy.");
     await loadData(); setWorking(null);
   }
 
@@ -364,7 +364,7 @@ export default function AdminConsole({section="dashboard"}) {
 
         <div className="admin-actions">
           <button className="admin-btn" onClick={()=>setDrawer(null)}>CANCEL</button>
-          <button className="admin-btn admin-btn-primary" disabled={working===drawer.id} onClick={()=>{
+          <button className="admin-btn admin-btn-primary" disabled={working===drawer.id} onClick={()=>{drawer.type==="review" ? (drawer.action==="REVIEW"?"START REVIEW":drawer.action==="APPROVE"?"APPROVE APPLICATION":drawer.action==="RETURN"?"RETURN FOR CORRECTION":"REJECT APPLICATION") : drawer.type==="confirm-config" ? "COMPLETE CONFIGURATION" : drawer.type==="assign-admin" ? "ASSIGN / INVITE ADMIN" : drawer.type==="lifecycle" ? drawer.action : drawer.type==="pricing" ? "SAVE PLAN" : "CONFIRM"}{
             if(drawer.type==="review") reviewApplication(drawer.id,drawer.action,drawerText);
             else if(drawer.type==="confirm-config") configureInstitution(drawer.id);
             else if(drawer.type==="assign-admin") assignAdmin(drawer.id,drawerForm);
@@ -375,7 +375,7 @@ export default function AdminConsole({section="dashboard"}) {
               setWorking(p.id); setMessage("");
               const v=await supabase.rpc("upsert_platform_pricing_plan",{p_plan_code:p.plan_code,p_plan_name:p.plan_name.trim(),p_min_onboards:p.min_onboards,p_max_onboards:p.max_onboards,p_monthly_fee_kes:p.monthly_fee_kes,p_transition_minimum_kes:p.transition_minimum_kes,p_pricing_mode:p.pricing_mode,p_description:p.description||"",p_active:p.active});
               if(v.error||!v.data?.ok){setMessage(v.error?.message||v.data?.error||"Pricing update failed.");setWorking(null);return}
-              setMessage("Pricing plan updated.");setDrawer(null);setPricingDraft(null);await loadData();setWorking(null);
+              setMessage("Pricing plan updated and saved under SE commercial control.");setDrawer(null);setPricingDraft(null);await loadData();setWorking(null);
             })();
           }}>CONFIRM</button>
         </div>
