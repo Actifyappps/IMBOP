@@ -65,7 +65,7 @@ export default function AdminConsole({section="dashboard"}) {
     const {data,error}=await supabase.rpc("review_institution_application",{p_application_id:id,p_action:action==="RETURN"?"RETURNED":action==="REJECT"?"REJECTED":action,p_notes:notes||null});
     if(error){setMessage(error.message);setWorking(null);return}
     if(!data?.ok){setMessage(data?.message||data?.error||"Institution application action failed.");setWorking(null);return}
-    setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved and onboarded as PENDING.":"Institution application decision recorded.");
+    setMessage(action==="REVIEW"?"Institution application moved to PENDING REVIEW.":action==="APPROVE"?"Institution application approved. Next: complete READINESS (configuration + administrator), then ACTIVATE to make the Institution public in Discover.":"Institution application decision recorded.");
     setDrawer(null); await loadData(); setWorking(null);
   }
 
