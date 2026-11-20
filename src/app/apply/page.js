@@ -243,7 +243,7 @@ export default function Apply(){
         </div>
         <div className="grid">
           <div><label className="label">CONTACT EMAIL</label><input className="input" type="email" value={institution.contact_email} onChange={e=>setInstitutionField("contact_email",e.target.value)} required/></div>
-          <div><label className="label">CONTACT PHONE</label><input className="input" value={institution.contact_phone} onChange={e=>setInstitutionField("contact_phone",e.target.value)} required/></div>
+          <div><label className="label">CONTACT PHONE</label><input className="input" value={institution.contact_phone} onChange={e=>setInstitutionField("contact_phone",e.target.value)} placeholder="+254 726 796 686" inputMode="tel" aria-describedby="contact-phone-help" required/><div id="contact-phone-help" className="field-help">Kenya example: +254 726 796 686. If starting with 0, convert 0726 796 686 to +254 726 796 686.</div></div>
         </div>
 
         <div className="eyebrow" style={{marginTop:26}}>ABOUT THE INSTITUTION</div>
