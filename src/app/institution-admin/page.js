@@ -24,7 +24,7 @@ export default function InstitutionAdmin(){
    supabase.from("institution_home_settings").select("*").eq("institution_id",institutionId).maybeSingle(),
    supabase.from("institution_announcements").select("id,title,body,status,visibility,published_at,created_at").eq("institution_id",institutionId).order("created_at",{ascending:false}).limit(10),
    supabase.from("business_profiles").select("id,business_id,institution_id,publication_state,visibility,review_notes,created_at,updated_at,business:businesses(name)").eq("institution_id",institutionId).order("updated_at",{ascending:false}),
-   supabase.from("market_items").select("id,intent_type,title,short_summary,publication_state,visibility,created_at,updated_at").eq("institution_id",institutionId).order("updated_at",{ascending:false}),
+   supabase.from("market_items").select("id,intent_type,title,short_summary,publication_state,visibility,review_notes,created_at,updated_at").eq("institution_id",institutionId).order("updated_at",{ascending:false}),
    supabase.from("opportunities").select("id,opportunity_type,title,short_summary,publication_state,visibility,review_notes,created_at,updated_at").eq("institution_id",institutionId).order("updated_at",{ascending:false}),
    supabase.rpc("get_public_imbop_pricing_plans")
   ]);
@@ -34,7 +34,8 @@ export default function InstitutionAdmin(){
   if(cm.error)setErr(cm.error.message);else setComms(cm.data||[]);
   if(s.error)setErr(s.error.message);else setSpace(s.data||null);
   if(an.error)setErr(an.error.message);else setAnns(an.data||[]);
-  if(ci.error)setErr(ci.error.message);else setBusinessProfiles(ci.data||[]);
+  if(bp.error)setErr(bp.error.message);else setBusinessProfiles(bp.data||[]);
+  if(ci.error)setErr(ci.error.message);else setContentItems(ci.data||[]);
   if(co.error)setErr(co.error.message);else setContentOpportunities(co.data||[]);
   if(p.error)setErr(p.error.message);else setPlans(p.data||[]);
   setLoading(false);
