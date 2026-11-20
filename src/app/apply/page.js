@@ -73,6 +73,8 @@ export default function Apply(){
       setBusy(false); return setMsg("Logo must be 1 MB or smaller.");
     }
 
+    const submissionIdempotencyKey=crypto.randomUUID();
+
     const {data,error}=await supabase.rpc("create_public_institution_application",{
       p_institution_name:institution.institution_name.trim(),
       p_brand_name:institution.brand_name.trim()||null,
@@ -86,7 +88,8 @@ export default function Apply(){
       p_hq_county:institution.county.trim(),
       p_hq_location:institution.location.trim(),
       p_description:institution.description.trim(),
-      p_authorised:institution.authorised
+      p_authorised:institution.authorised,
+      p_submission_idempotency_key:submissionIdempotencyKey
     });
 
     if(error){setBusy(false);return setMsg(error.message);}
