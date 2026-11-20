@@ -1,11 +1,12 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import Nav from "../../components/Nav";
 import Footer from "../../components/Footer";
 import {supabase} from "../../lib/supabase";
 
 const empty={name:"",email:"",phone:"",business:"",description:"",sector:"",value_chain:"",location:"",offer:"",need:""};
 const instEmpty={institution_name:"",brand_name:"",institution_type:"",membership_size:"",contact_name:"",contact_role:"",contact_email:"",contact_phone:"",website:"",county:"",location:"",description:"",authorised:true};
+const institutionSubmissionStorageKey="imbop:institution-application-idempotency-key";
 
 export default function Apply(){
   const [type,setType]=useState("");
@@ -17,6 +18,7 @@ export default function Apply(){
   const [logoPreview,setLogoPreview]=useState("");
   const [msg,setMsg]=useState("");
   const [busy,setBusy]=useState(false);
+  const institutionSubmissionKeyRef=useRef(null);
 
   useEffect(()=>{
     supabase.rpc("public_application_institutions")
@@ -27,6 +29,20 @@ export default function Apply(){
 
   const setMemberField=(k,v)=>setMember(x=>({...x,[k]:v}));
   const setInstitutionField=(k,v)=>setInstitution(x=>({...x,[k]:v}));
+
+  function getInstitutionSubmissionKey(){
+    let key=institutionSubmissionKeyRef.current;
+    if(!key){try{key=window.sessionStorage.getItem(institutionSubmissionStorageKey)}catch{}}
+    if(!key)key=window.crypto.randomUUID();
+    institutionSubmissionKeyRef.current=key;
+    try{window.sessionStorage.setItem(institutionSubmissionStorageKey,key)}catch{}
+    return key;
+  }
+
+  function clearInstitutionSubmissionKey(){
+    institutionSubmissionKeyRef.current=null;
+    try{window.sessionStorage.removeItem(institutionSubmissionStorageKey)}catch{}
+  }
 
   function chooseLogo(file){
     if(logoPreview) URL.revokeObjectURL(logoPreview);
@@ -73,23 +89,38 @@ export default function Apply(){
       setBusy(false); return setMsg("Logo must be 1 MB or smaller.");
     }
 
-    const {data,error}=await supabase.rpc("create_public_institution_application",{
-      p_institution_name:institution.institution_name.trim(),
-      p_brand_name:institution.brand_name.trim()||null,
-      p_institution_type:institution.institution_type.trim(),
-      p_membership_size:Number(institution.membership_size),
-      p_contact_name:institution.contact_name.trim(),
-      p_contact_role:institution.contact_role.trim(),
-      p_contact_email:institution.contact_email.trim(),
-      p_contact_phone:institution.contact_phone.trim(),
-      p_website:institution.website.trim()||null,
-      p_hq_county:institution.county.trim(),
-      p_hq_location:institution.location.trim(),
-      p_description:institution.description.trim(),
-      p_authorised:institution.authorised
-    });
+    const submissionKey=getInstitutionSubmissionKey();
+    let submissionResult;
+    try{
+      submissionResult=await supabase.rpc("create_public_institution_application",{
+        p_institution_name:institution.institution_name.trim(),
+        p_brand_name:institution.brand_name.trim()||null,
+        p_institution_type:institution.institution_type.trim(),
+        p_membership_size:Number(institution.membership_size),
+        p_contact_name:institution.contact_name.trim(),
+        p_contact_role:institution.contact_role.trim(),
+        p_contact_email:institution.contact_email.trim(),
+        p_contact_phone:institution.contact_phone.trim(),
+        p_website:institution.website.trim()||null,
+        p_hq_county:institution.county.trim(),
+        p_hq_location:institution.location.trim(),
+        p_description:institution.description.trim(),
+        p_authorised:institution.authorised,
+        p_submission_idempotency_key:submissionKey
+      });
+    }catch{
+      setBusy(false);
+      return setMsg("Submission could not be confirmed. Retry without changing the form to avoid creating a duplicate application.");
+    }
 
-    if(error){setBusy(false);return setMsg(error.message);}
+    const {data,error}=submissionResult;
+    if(error){
+      if(error.message?.includes("IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_DETAILS"))clearInstitutionSubmissionKey();
+      setBusy(false);
+      return setMsg(error.message?.includes("IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_DETAILS")
+        ? "The application details changed after an earlier attempt. Please submit again to continue."
+        : error.message);
+    }
 
     const application=data?.[0];
     if(logoFile && application?.application_id && application?.logo_upload_token){
@@ -108,6 +139,7 @@ export default function Apply(){
       }
     }
 
+    clearInstitutionSubmissionKey();
     setBusy(false);
     const applicationReference=application?.application_reference;
     window.location.href=applicationReference
