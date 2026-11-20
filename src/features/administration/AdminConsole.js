@@ -364,7 +364,7 @@ export default function AdminConsole({section="dashboard"}) {
 
         <div className="admin-actions">
           <button className="admin-btn" onClick={()=>setDrawer(null)}>CANCEL</button>
-          <button className="admin-btn admin-btn-primary" disabled={working===drawer.id} onClick={()=>{drawer.type==="review" ? (drawer.action==="REVIEW"?"START REVIEW":drawer.action==="APPROVE"?"APPROVE APPLICATION":drawer.action==="RETURN"?"RETURN FOR CORRECTION":"REJECT APPLICATION") : drawer.type==="confirm-config" ? "COMPLETE CONFIGURATION" : drawer.type==="assign-admin" ? "ASSIGN / INVITE ADMIN" : drawer.type==="lifecycle" ? drawer.action : drawer.type==="pricing" ? "SAVE PLAN" : "CONFIRM"}{
+          <button className="admin-btn admin-btn-primary" disabled={working===drawer.id} onClick={()=>{
             if(drawer.type==="review") reviewApplication(drawer.id,drawer.action,drawerText);
             else if(drawer.type==="confirm-config") configureInstitution(drawer.id);
             else if(drawer.type==="assign-admin") assignAdmin(drawer.id,drawerForm);
@@ -377,7 +377,7 @@ export default function AdminConsole({section="dashboard"}) {
               if(v.error||!v.data?.ok){setMessage(v.error?.message||v.data?.error||"Pricing update failed.");setWorking(null);return}
               setMessage("Pricing plan updated and saved under SE commercial control.");setDrawer(null);setPricingDraft(null);await loadData();setWorking(null);
             })();
-          }}>CONFIRM</button>
+          }}>{drawer.type==="review" ? (drawer.action==="REVIEW"?"START REVIEW":drawer.action==="APPROVE"?"APPROVE APPLICATION":drawer.action==="RETURN"?"RETURN FOR CORRECTION":"REJECT APPLICATION") : drawer.type==="confirm-config" ? "COMPLETE CONFIGURATION" : drawer.type==="assign-admin" ? "ASSIGN / INVITE ADMIN" : drawer.type==="lifecycle" ? drawer.action : drawer.type==="pricing" ? "SAVE PLAN" : "CONFIRM"}</button>
         </div>
       </aside>
     </div>}
