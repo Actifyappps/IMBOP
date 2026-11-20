@@ -79,8 +79,26 @@ export default function Apply(){
       : "/apply/confirmation";
   }
 
+  function validateInstitutionSubmission(){
+    const name=institution.institution_name.trim();
+    const contactName=institution.contact_name.trim();
+    const email=institution.contact_email.trim();
+    const phone=institution.contact_phone.trim();
+    const membership=Number(institution.membership_size);
+    if(name.length<2 || name.length>200)return "Institution name must be between 2 and 200 characters.";
+    if(contactName.length<2 || contactName.length>200)return "Contact name must be between 2 and 200 characters.";
+    if(email.length<5 || email.length>254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return "Please enter a valid contact email address.";
+    if(phone.length<7 || phone.length>30 || !/^\\+?[0-9][0-9 ()-]{5,28}[0-9]$/.test(phone))return "Please enter a valid contact phone number (digits, spaces, +, parentheses or hyphens only).";
+    if(!Number.isInteger(membership) || membership<0 || membership>100000000)return "Please enter a valid current membership estimate.";
+    return "";
+  }
+
   async function submitInstitution(e){
-    e.preventDefault(); setBusy(true); setMsg("");
+    e.preventDefault();
+    setMsg("");
+    const validationMessage=validateInstitutionSubmission();
+    if(validationMessage){ setMsg(validationMessage); return; }
+    setBusy(true);
 
     if(logoFile && !["image/jpeg","image/png","image/webp"].includes(logoFile.type)){
       setBusy(false); return setMsg("Logo must be JPG, PNG or WEBP.");
@@ -111,6 +129,11 @@ export default function Apply(){
     }catch{
       setBusy(false);
       return setMsg("Submission could not be confirmed. Retry without changing the form to avoid creating a duplicate application.");
+    }
+
+    if(!submissionResult){
+      setBusy(false);
+      return setMsg("Submission could not be confirmed. Please try again.");
     }
 
     const {data,error}=submissionResult;
@@ -233,7 +256,7 @@ export default function Apply(){
         <button className="btn" disabled={busy}>{busy?"SUBMITTING…":"SUBMIT INSTITUTION APPLICATION"}</button>
       </form>}
 
-      {msg && <div className="notice" style={{marginTop:20}}>{msg}</div>}
+      {msg && <div className="notice" role="alert" aria-live="polite" style={{marginTop:20}}>{msg}</div>}
     </div>
   </main><Footer/></>
 }
