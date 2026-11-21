@@ -8,7 +8,7 @@
 
 begin;
 
-select plan(23);
+select plan(24);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
