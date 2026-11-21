@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(10);
+select plan(11);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
@@ -68,6 +68,8 @@ select tests.authenticate_as('imbopwiki-b@test.invalid');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-draft-test'),0,'cross-tenant user cannot read draft version history');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'draft remains undiscoverable');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-public-test' and v.id=c.published_version_id),1,'published version is the public version');
+
+select is_empty($ update public.wiki_community_memberships set role='OWNER' where community_id=gen_random_uuid() returning id $, 'membership role escalation cannot target unrelated community');
 
 select is_empty(
   $ update public.wiki_content
