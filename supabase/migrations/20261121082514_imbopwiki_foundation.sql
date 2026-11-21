@@ -856,7 +856,7 @@ revoke all on function public.wiki_create_version(uuid,text,text,text,text),
   public.wiki_reject(uuid,text),
   public.wiki_unpublish(uuid,text),
   public.wiki_archive(uuid,text)
-from anon;
+from public;
 
 grant execute on function public.wiki_create_version(uuid,text,text,text,text),
   public.wiki_submit(uuid),
