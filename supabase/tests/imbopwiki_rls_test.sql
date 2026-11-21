@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(11);
+select plan(12);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
@@ -23,6 +23,8 @@ declare
   public_v1 uuid := gen_random_uuid();
   draft_content uuid := gen_random_uuid();
   draft_v1 uuid := gen_random_uuid();
+  community_a uuid := gen_random_uuid();
+  membership_b uuid := gen_random_uuid();
 begin
   insert into public.institutions(id,name,slug,status)
   values
@@ -43,6 +45,12 @@ begin
      'PUBLISHED','PUBLIC',public_v1,public_v1),
     (draft_content,space_a,inst_a,u_a,'ARTICLE','Draft Test','imbopwiki-draft-test',
      'DRAFT','PRIVATE',draft_v1,null);
+
+  insert into public.wiki_communities(id,space_id,institution_id,name,slug,status,visibility,owner_user_id)
+  values (community_a,space_a,inst_a,'Test Community A','imbopwiki-test-community-a','ACTIVE','INSTITUTION',u_a);
+
+  insert into public.wiki_community_memberships(id,community_id,user_id,institution_id,role,status,joined_at,approved_at,approved_by_user_id)
+  values (membership_b,community_a,u_b,inst_a,'MEMBER','ACTIVE',now(),now(),u_a);
 
   insert into public.wiki_content_versions(id,content_id,version_number,created_by_user_id,title,body)
   values
@@ -69,7 +77,7 @@ select is((select count(*)::int from public.wiki_content_versions v join public.
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'draft remains undiscoverable');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-public-test' and v.id=c.published_version_id),1,'published version is the public version');
 
-select is_empty($ update public.wiki_community_memberships set role='OWNER' where community_id=gen_random_uuid() returning id $, 'membership role escalation cannot target unrelated community');
+select is_empty($ update public.wiki_community_memberships set role='OWNER' where id=(select id from public.wiki_community_memberships where user_id=(select tests.get_supabase_uid('imbopwiki-b@test.invalid')) and community_id=(select id from public.wiki_communities where slug='imbopwiki-test-community-a')) returning id $, 'member cannot self-escalate to community owner');
 
 select is_empty(
   $ update public.wiki_content
