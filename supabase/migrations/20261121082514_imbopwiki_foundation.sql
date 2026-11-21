@@ -227,6 +227,31 @@ as $$
   );
 $$;
 
+create or replace function private.is_wiki_community_owner(p_community_id uuid)
+returns boolean
+language sql stable security definer
+set search_path = ''
+as $
+  select exists (
+    select 1
+    from public.wiki_community_memberships m
+    where m.community_id = p_community_id
+      and m.user_id = (select auth.uid())
+      and m.status = 'ACTIVE'
+      and m.role = 'OWNER'
+  )
+  or exists (
+    select 1
+    from public.wiki_communities c
+    where c.id = p_community_id
+      and c.owner_user_id = (select auth.uid())
+  )
+  or private.has_platform_permission('platform_admin');
+$;
+
+revoke all on function private.is_wiki_community_owner(uuid) from public, anon;
+grant execute on function private.is_wiki_community_owner(uuid) to authenticated;
+
 create or replace function private.is_wiki_community_manager(p_community_id uuid)
 returns boolean
 language sql stable security definer
@@ -342,7 +367,30 @@ using (
 )
 with check (
   private.has_platform_permission('platform_admin')
-  or private.is_wiki_community_manager(community_id)
+  or (
+    private.is_wiki_community_manager(community_id)
+    and (
+      role in ('MEMBER','CONTRIBUTOR')
+      or (
+        role = 'MODERATOR'
+        and (
+          private.is_wiki_community_owner(community_id)
+          or exists (
+            select 1
+            from public.wiki_community_memberships me
+            where me.community_id = community_id
+              and me.user_id = (select auth.uid())
+              and me.status = 'ACTIVE'
+              and me.role = 'OWNER'
+          )
+        )
+      )
+      or (
+        role = 'OWNER'
+        and private.is_wiki_community_owner(community_id)
+      )
+    )
+  )
 );
 
 create policy wiki_topics_public_read on public.wiki_topics for select to anon, authenticated
@@ -540,6 +588,27 @@ using (
         or (c.community_id is not null and private.is_wiki_community_member(c.community_id))
       )
   )
+  and (
+    target_type = 'WIKI_CONTENT' and exists (
+      select 1 from public.wiki_content t
+      where t.id = target_id
+        and t.publication_state = 'PUBLISHED'
+        and t.visibility = 'PUBLIC'
+        and t.published_version_id is not null
+        and t.archived_at is null
+    )
+    or target_type = 'COMMUNITY' and exists (
+      select 1 from public.wiki_communities t
+      where t.id = target_id
+        and t.status = 'ACTIVE'
+        and t.visibility = 'PUBLIC'
+    )
+    or target_type = 'INSTITUTION' and exists (
+      select 1 from public.institutions t
+      where t.id = target_id
+    )
+    or target_type not in ('WIKI_CONTENT','COMMUNITY','INSTITUTION')
+  )
 );
 
 create policy wiki_content_links_insert on public.wiki_content_links for insert to authenticated
@@ -573,3 +642,220 @@ comment on table public.wiki_spaces is 'IMBOPwiki organizational/presentation co
 comment on table public.wiki_content is 'IMBOPwiki durable knowledge identity. current_version_id is working; published_version_id is authorized publication.';
 comment on table public.wiki_content_links is 'References do not grant authorization to target objects.';
 comment on table public.wiki_content_reviews is 'Attributable wiki publication/review evidence.';
+
+
+-- IMBOPwiki governance RPCs.
+-- These functions keep publication transitions attributable and prevent direct state
+-- mutation from bypassing the governed lifecycle. Working versions are immutable;
+-- publication always points to an explicit version.
+
+create or replace function public.wiki_create_version(
+  p_content_id uuid,
+  p_title text,
+  p_body text,
+  p_summary text default null,
+  p_change_reason text default null
+)
+returns public.wiki_content_versions
+language plpgsql
+security invoker
+set search_path = 'public,private'
+as $$
+declare
+  v_content public.wiki_content;
+  v_version public.wiki_content_versions;
+  v_next integer;
+begin
+  select * into v_content from public.wiki_content where id = p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if v_content.created_by_user_id <> (select auth.uid())
+     and not private.has_platform_permission('platform_admin')
+     and not (v_content.institution_id is not null and private.has_institution_permission(v_content.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if v_content.publication_state = 'ARCHIVED' then raise exception 'Archived content cannot be edited'; end if;
+
+  select coalesce(max(version_number),0)+1 into v_next
+  from public.wiki_content_versions where content_id = p_content_id;
+
+  insert into public.wiki_content_versions(content_id,version_number,created_by_user_id,title,summary,body,change_reason)
+  values(p_content_id,v_next,(select auth.uid()),p_title,p_summary,p_body,p_change_reason)
+  returning * into v_version;
+
+  update public.wiki_content
+     set current_version_id = v_version.id,
+         updated_at = now(),
+         publication_state = case when publication_state = 'PUBLISHED' then 'UNPUBLISHED' else publication_state end
+   where id = p_content_id;
+
+  return v_version;
+end $$;
+
+create or replace function public.wiki_submit(p_content_id uuid)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content;
+begin
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if r.created_by_user_id <> (select auth.uid())
+     and not private.has_platform_permission('platform_admin')
+  then raise exception 'Not authorized'; end if;
+  if r.current_version_id is null then raise exception 'A working version is required'; end if;
+  if r.publication_state not in ('DRAFT','RETURNED','UNPUBLISHED') then raise exception 'Content cannot be submitted from its current state'; end if;
+  update public.wiki_content set publication_state='SUBMITTED', updated_at=now() where id=p_content_id returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id)
+  values(p_content_id,'SUBMIT',r.publication_state,'SUBMITTED',(select auth.uid()));
+  return r;
+end $$;
+
+create or replace function public.wiki_start_review(p_content_id uuid)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content; v_from text;
+begin
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if not private.has_platform_permission('platform_admin')
+     and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if r.publication_state <> 'SUBMITTED' then raise exception 'Content is not awaiting review'; end if;
+  v_from:=r.publication_state;
+  update public.wiki_content set publication_state='PENDING_REVIEW', updated_at=now() where id=p_content_id returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id)
+  values(p_content_id,'START_REVIEW',v_from,'PENDING_REVIEW',(select auth.uid()));
+  return r;
+end $$;
+
+create or replace function public.wiki_publish(p_content_id uuid, p_notes text default null)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content; v_from text;
+begin
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if not private.has_platform_permission('platform_admin')
+     and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if r.publication_state not in ('SUBMITTED','PENDING_REVIEW') then raise exception 'Content is not ready to publish'; end if;
+  if r.current_version_id is null then raise exception 'A working version is required'; end if;
+  v_from:=r.publication_state;
+  update public.wiki_content
+     set publication_state='PUBLISHED',
+         visibility='PUBLIC',
+         published_version_id=current_version_id,
+         published_at=now(),
+         published_by_user_id=(select auth.uid()),
+         updated_at=now()
+   where id=p_content_id
+   returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id,notes)
+  values(p_content_id,'PUBLISH',v_from,'PUBLISHED',(select auth.uid()),p_notes);
+  return r;
+end $$;
+
+create or replace function public.wiki_return(p_content_id uuid, p_notes text)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content; v_from text;
+begin
+  if nullif(trim(p_notes),'') is null then raise exception 'A return reason is required'; end if;
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if not private.has_platform_permission('platform_admin')
+     and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if r.publication_state <> 'PENDING_REVIEW' then raise exception 'Content is not in review'; end if;
+  v_from:=r.publication_state;
+  update public.wiki_content set publication_state='RETURNED', updated_at=now() where id=p_content_id returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id,notes)
+  values(p_content_id,'RETURN',v_from,'RETURNED',(select auth.uid()),p_notes);
+  return r;
+end $$;
+
+create or replace function public.wiki_reject(p_content_id uuid, p_notes text)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content; v_from text;
+begin
+  if nullif(trim(p_notes),'') is null then raise exception 'A rejection reason is required'; end if;
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if not private.has_platform_permission('platform_admin')
+     and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if r.publication_state <> 'PENDING_REVIEW' then raise exception 'Content is not in review'; end if;
+  v_from:=r.publication_state;
+  update public.wiki_content set publication_state='REJECTED', updated_at=now() where id=p_content_id returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id,notes)
+  values(p_content_id,'REJECT',v_from,'REJECTED',(select auth.uid()),p_notes);
+  return r;
+end $$;
+
+create or replace function public.wiki_unpublish(p_content_id uuid, p_notes text default null)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content; v_from text;
+begin
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if not private.has_platform_permission('platform_admin')
+     and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if r.publication_state <> 'PUBLISHED' then raise exception 'Content is not published'; end if;
+  v_from:=r.publication_state;
+  update public.wiki_content
+     set publication_state='UNPUBLISHED', visibility='PRIVATE', published_version_id=null, updated_at=now()
+   where id=p_content_id returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id,notes)
+  values(p_content_id,'UNPUBLISH',v_from,'UNPUBLISHED',(select auth.uid()),p_notes);
+  return r;
+end $$;
+
+create or replace function public.wiki_archive(p_content_id uuid, p_notes text default null)
+returns public.wiki_content
+language plpgsql security invoker set search_path='public,private'
+as $$
+declare r public.wiki_content; v_from text;
+begin
+  select * into r from public.wiki_content where id=p_content_id for update;
+  if not found then raise exception 'Wiki content not found'; end if;
+  if not private.has_platform_permission('platform_admin')
+     and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
+  then raise exception 'Not authorized'; end if;
+  if r.publication_state='ARCHIVED' then return r; end if;
+  v_from:=r.publication_state;
+  update public.wiki_content set publication_state='ARCHIVED', archived_at=now(), published_version_id=null, updated_at=now() where id=p_content_id returning * into r;
+  insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id,notes)
+  values(p_content_id,'ARCHIVE',v_from,'ARCHIVED',(select auth.uid()),p_notes);
+  return r;
+end $$;
+
+revoke all on function public.wiki_create_version(uuid,text,text,text,text),
+  public.wiki_submit(uuid),
+  public.wiki_start_review(uuid),
+  public.wiki_publish(uuid,text),
+  public.wiki_return(uuid,text),
+  public.wiki_reject(uuid,text),
+  public.wiki_unpublish(uuid,text),
+  public.wiki_archive(uuid,text)
+from anon;
+
+grant execute on function public.wiki_create_version(uuid,text,text,text,text),
+  public.wiki_submit(uuid),
+  public.wiki_start_review(uuid),
+  public.wiki_publish(uuid,text),
+  public.wiki_return(uuid,text),
+  public.wiki_reject(uuid,text),
+  public.wiki_unpublish(uuid,text),
+  public.wiki_archive(uuid,text)
+to authenticated;
+
+-- Governance hardening: direct clients may not bypass publication state transitions.
+revoke update (publication_state, published_version_id, published_at, published_by_user_id, archived_at) on public.wiki_content from authenticated;
+grant update (publication_state, published_version_id, published_at, published_by_user_id, archived_at) on public.wiki_content to authenticated;
