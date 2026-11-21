@@ -179,7 +179,7 @@ create or replace function private.wiki_link_target_allowed(p_content_id uuid, p
 returns boolean
 language sql stable security definer
 set search_path = ''
-as $
+as $function$
   select case p_target_type
     when 'WIKI_CONTENT' then exists (select 1 from public.wiki_content t join public.wiki_content s on s.id = p_content_id where t.id = p_target_id and (s.institution_id is null or t.institution_id is null or s.institution_id = t.institution_id))
     when 'INSTITUTION' then exists (select 1 from public.wiki_content s where s.id = p_content_id and exists (select 1 from public.institutions t where t.id = p_target_id) and (s.institution_id is null or s.institution_id = p_target_id))
@@ -192,7 +192,7 @@ as $
     when 'COMMUNITY' then exists (select 1 from public.wiki_content s join public.wiki_communities t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or t.institution_id is null or s.institution_id = t.institution_id))
     else false
   end;
-$;
+$function$;
 
 revoke all on function private.wiki_link_target_allowed(uuid,text,uuid) from public, anon;
 grant execute on function private.wiki_link_target_allowed(uuid,text,uuid) to authenticated;
