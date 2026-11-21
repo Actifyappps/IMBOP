@@ -1,60 +1,39 @@
-# IMBOPwiki — MVP
+# IMBOPwiki — MVP Definition
+**Status:** Frozen for engineering planning
 
-## 1. Objective
-Deliver a useful, governed knowledge and collaboration layer inside IMBOP without turning the first release into a full social network.
+## Objective
+Prove one complete governed loop:
+**CREATE → DRAFT → SUBMIT → REVIEW → PUBLISH → DISCOVER → DISCUSS → ACT**
 
-## 2. MVP Must Have
-### Knowledge
-Create/edit, structured types, draft/save, submit, review, approve, publish, return/reject with reasons where applicable, archive/unpublish, attribution, timestamps and basic version history.
+## Included
+- existing Auth and institutional memberships
+- community membership and scope-aware RLS
+- six MVP content types
+- current vs published versioning
+- global/institution/private communities
+- governed submit/review/publish/return/reject/unpublish/archive
+- first-class discussions and moderation
+- authorized discovery/search
+- typed links to existing IMBOP economic records
+- existing in-app Communications
+- attribution, audit and version history
 
-### Communities
-Create/manage governed communities, membership/access, community roles and community content listing.
+## Outside MVP
+Consumer social feed, AI matchmaking, native apps, blockchain, microservices, payments/billing, second identity system, second notification/delivery system, automatic publication, unrestricted public editing, per-institution databases.
 
-### Discussion
-Discussion attached to content/community context, authenticated participation, replies and basic moderation controls.
-
-### Discovery
-Public published discovery, authenticated discovery, topic/category navigation, authorization-aware search and related content.
-
-### IMBOP Integration
-Links to economic objects, institution/member context, in-app notifications and reuse of existing audit/communications infrastructure.
-
-### Security
-RLS, institutional isolation, active-membership checks, role checks, direct-access tests and publication-state enforcement.
-
-## 3. Not in MVP
-Unless separately justified:
-- AI matchmaking;
-- algorithmic social feed;
-- native mobile apps;
-- blockchain;
-- full real-time chat replacement;
-- complex reactions/gamification;
-- sophisticated recommendation engine;
-- custom payment system;
-- broad external social-media API integrations;
-- separate databases per institution;
-- microservices.
-
-## 4. First Useful Release
-A member can sign in, enter IMBOPwiki, discover a community, read published knowledge, participate in an authorized discussion, create/submit knowledge where permitted, receive notifications and move from knowledge to a relevant IMBOP business or opportunity.
-
-An institution administrator can govern its community, review content, approve/return/reject, publish approved content, manage appropriate membership/roles and retain institutional knowledge.
-
-## 5. Certification Mindset
-MVP still requires production discipline: authenticated E2E, publication governance, tenant isolation, direct/API authorization, mobile/desktop checks, communication verification, fixture cleanup and audit evidence.
-
-## 6. Build Sequence
-1. schema design;
-2. RLS and authorization;
-3. server actions/RPCs;
-4. content lifecycle;
-5. community/membership;
-6. discussion;
-7. discovery/search;
-8. notifications;
-9. UI polish;
-10. E2E certification.
-
-## 7. MVP Rule
-Build the smallest durable foundation that can support many institutional networks without creating a rewrite trap.
+## Acceptance gate
+1. authorized public read
+2. denied unpublished read
+3. denied cross-institution read
+4. denied private-community read without membership
+5. access removed after membership removal
+6. author draft
+7. submit
+8. reviewer return/reject with reason
+9. publisher publish
+10. working version does not replace published version until approved
+11. public sees only published version
+12. notification cannot bypass target authorization
+13. moderator cannot escalate privilege
+14. links cannot grant target access
+15. archive/unpublish removes ordinary discovery

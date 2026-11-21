@@ -1,79 +1,52 @@
-# IMBOPwiki — Conceptual Data Model
+# IMBOPwiki — Final Data Model
+**Status:** Reconciled and frozen for migration planning
+**No production migration is authorized by this document.**
 
-## 1. Design Principle
-The data model extends IMBOP rather than creating a disconnected parallel platform.
+## Reuse
+Existing IMBOP: Auth/users, institutions, memberships, permissions, businesses, business_profiles, market_items, opportunities, enquiries, introductions, communications, audit and media/storage governance.
 
-## 2. Core Objects
-### Wiki Content
-A durable knowledge record: id, institution context, community context, author/member/user reference, content type, title, summary, body, visibility, lifecycle status, publication metadata and timestamps.
+## Wiki-specific primitives
+### wiki_spaces
+id, institution_id nullable, name, slug, description, visibility, status, governance_owner_user_id, timestamps. Presentation/governance context only.
 
-### Community
-A governed group around a subject, institution, network or working purpose: identity, context, description, visibility, membership rules, status and governance owner.
+### wiki_communities
+id, space_id, institution_id nullable, name, slug, description, membership_policy, visibility, status, owner_user_id, timestamps. Nullable institution_id permits global/cross-institution communities.
 
-### Topic
-A reusable subject classification.
+### wiki_community_memberships
+id, community_id, user_id, institution_id nullable, role, status, joined_at, approved_at, approved_by_user_id, timestamps. Unique active membership per community/user.
 
-### Community Membership
-Connects a user/member to a community with role and status.
+### wiki_topics
+id, name, slug, description, status, timestamps.
 
-### Content Version
-Preserves meaningful revisions.
+### wiki_content
+id, space_id, community_id nullable, institution_id nullable, created_by_user_id, content_type, title, slug, summary, current_version_id, published_version_id nullable, publication_state, visibility, published_at, published_by_user_id, archived_at, timestamps.
 
-### Discussion
-A structured conversation associated with content, community or another IMBOP object.
+### wiki_content_versions
+id, content_id, version_number, created_by_user_id, title, summary, body, change_reason, created_at. Append-only; unique content_id + version_number.
 
-### Discussion Entry
-An individual contribution to a discussion.
+### wiki_content_topics
+content_id + topic_id primary key.
 
-### Content Review
-A governance decision/review event.
+### wiki_discussions
+id, space_id, community_id nullable, content_id nullable, institution_id nullable, created_by_user_id, title, status, visibility, timestamps. At least one governed parent context required.
 
-### Content Link
-Connects knowledge to another wiki object or an IMBOP economic object.
+### wiki_discussion_entries
+id, discussion_id, author_user_id, body, status, edited_at nullable, timestamps.
 
-### Notification
-An in-app communication pointing a participant to a relevant record.
+### wiki_content_links
+id, content_id, target_type, target_id, relationship_type, created_by_user_id, timestamps. Allow-list: WIKI_CONTENT, INSTITUTION, BUSINESS, BUSINESS_PROFILE, MARKET_ITEM, OPPORTUNITY, ENQUIRY, INTRODUCTION, COMMUNITY. A link never grants access.
 
-## 3. Relationship to Existing IMBOP Objects
-Wiki content should reference, where authorized:
-- institutions;
-- institution networks;
-- users;
-- memberships;
-- businesses;
-- business profiles;
-- products/services;
-- offers;
-- needs;
-- opportunities;
-- enquiries;
-- introductions.
+### wiki_content_reviews
+Retained because existing IMBOP review functions are domain-specific. Fields: id, content_id, action, from_state, to_state, reviewer_user_id, notes, created_at.
 
-This lets knowledge point to relevant economic records without duplicating them.
+### Notifications
+Prefer existing IMBOP Communications Infrastructure. Do not create wiki_notifications unless the existing inbox/read model demonstrably cannot represent wiki notifications.
 
-## 4. Institutional Context
-Institution-scoped records carry an institution identifier or derive it through an explicit secure relationship. Community-scoped records have clear community ownership/scope. Cross-institution communities require explicit policy.
+## MVP content types
+ARTICLE, OPPORTUNITY, QUESTION, RESOURCE, ANNOUNCEMENT, EVENT.
 
-## 5. Lifecycle Fields
-A governed record must distinguish draft, submission, review, publication and archive states. Do not collapse these into a single boolean.
+## Integrity
+Enforce valid state/visibility combinations, unique scoped slugs, unique versions, valid current/published version references, publication metadata rules, coherent content/community/space relationships, explicit link target types, controlled archive/unpublish, and no privilege escalation through community roles.
 
-## 6. Visibility
-Use controlled values such as public, authenticated, institution, community and private rather than arbitrary free text.
-
-## 7. Versioning
-A version preserves content identity, version number, author, durable content snapshot and created time, plus reason/context where required.
-
-## 8. Governance Events
-Retain reviewer, action, reason/notes where applicable, prior state, resulting state and timestamp.
-
-## 9. Audit
-Governance and security-sensitive changes feed the existing IMBOP audit approach rather than creating a second audit universe.
-
-## 10. Notifications and Communications
-Notification records reference the underlying event/object rather than duplicating complete content. External delivery records remain part of the existing communications architecture.
-
-## 11. Search Model
-Search is derived from authorized records and must not become an independent source of truth that bypasses RLS or publication state.
-
-## 12. Implementation Rule
-This document is conceptual. No database migration should be written until product boundaries, information architecture, governance, security and MVP scope are sufficiently stable.
+## Migration boundary
+First migration must be additive and isolated to IMBOPwiki. Do not alter billing or unrelated production workflows.

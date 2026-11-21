@@ -1,52 +1,36 @@
-# IMBOPwiki — Security
+# IMBOPwiki — Security & RLS Model
+**Status:** Frozen for MVP engineering
 
-## 1. Security Boundary
-The database and authorization layer are the security boundary.
+## Security boundary
+**The database is the security boundary.**
+UI hiding, route guards, search filters, notification links and client identifiers are not security controls.
 
-UI hiding is not authorization. API route protection alone is not sufficient.
+## Identity and membership
+Reuse Supabase Auth and existing IMBOP identity. Reuse public.memberships for institutional membership. Use wiki_community_memberships only for community participation. Community roles cannot grant institution or platform administration.
 
-IMBOPwiki must use the existing IMBOP multi-tenant security model and Supabase/Postgres Row Level Security (RLS).
+## RLS
+Every exposed wiki table must have RLS enabled. TO authenticated alone is insufficient. UPDATE requires both correct USING and WITH CHECK. Knowing a UUID never bypasses scope.
 
-## 2. Tenant Isolation
-Institution-scoped records must carry appropriate institutional context. Authorization must prevent a user from reading or mutating another institution's restricted content merely by changing an ID, route, query parameter or request payload.
+## Public
+Anonymous users may read only records that are PUBLISHED + PUBLIC + not archived/deleted and whose published_version_id is the authorized public version.
 
-Security tests must include both **ALLOW** and **DENY** cases.
+## Institution
+Institution-scoped content requires current active membership unless explicit platform authority applies.
 
-## 3. Access Dimensions
-Access may depend on authentication, institution membership, membership status, community membership, role, content visibility, publication state, ownership/contributor relationship and platform permissions.
+## Community
+Community/private content requires current active community membership unless an explicit public publication or platform-authority path applies.
 
-## 4. Visibility Classes
-- PUBLIC
-- AUTHENTICATED
-- INSTITUTION
-- COMMUNITY
-- PRIVATE WORKING GROUP
+## Working groups
+Private working groups are private communities. Removing membership immediately removes access to old URLs/direct IDs.
 
-Visibility never overrides a stronger authorization rule.
+## Version security
+current_version_id = latest working version.
+published_version_id = version currently authorized for publication.
+Public readers never receive private draft history.
 
-## 5. Publication vs Authorization
-Publication controls discoverability. Authorization controls access and mutation. Both are required.
+## Links and notifications
+Links are relationships, not permissions. Target authorization always wins.
+Notifications do not grant object access; opening one re-checks target authorization and previews minimize sensitive data.
 
-## 6. Direct Access
-Sensitive records remain protected through direct route/API/database access. Test UI, route, API/RPC, database query, search, related content and notification payloads.
-
-## 7. Active Membership
-Authenticated participation requiring membership should require an active membership state. Pending, suspended, removed or unrelated users are not authorized participants.
-
-## 8. Role Separation
-Roles are scoped: platform administrator, institution administrator, contributor, editor/reviewer, community manager, moderator and ordinary participant. One role must not silently grant unrelated authority.
-
-## 9. Auditability
-Security-sensitive actions should establish who, what, when, scope, prior state and resulting state.
-
-## 10. Search and Caching
-Search indexes and public caches must respect visibility. Private records must not leak through search snippets, related-content lists, cached pages, public metadata or notification previews.
-
-## 11. External Channels
-WhatsApp, email, SMS and other channels are distribution mechanisms, not the authorization boundary. Sensitive actions return users to authenticated IMBOP workflows.
-
-## 12. Security Testing
-Before production certification test authenticated allow, unauthenticated deny, wrong-institution deny, wrong-community deny, wrong-role deny, inactive-membership deny, direct-ID deny, unpublished-content deny, public-published allow and mutation permission checks.
-
-## 13. Principle
-**RLS and server-side authorization decide. The interface explains.**
+## Required denial tests
+Institution A → B content; non-member → private community; removed member → old discussion; public → unpublished/private content; community moderator → institution-admin action; direct-ID outside scope.

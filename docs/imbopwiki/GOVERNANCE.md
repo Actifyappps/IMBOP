@@ -1,70 +1,38 @@
 # IMBOPwiki — Governance
+**Status:** Frozen for MVP engineering
 
-## 1. Principle
-**Creation is not publication.**
+## Governing principle
+**CREATE → SAVE DRAFT → SUBMIT → REVIEW → PUBLISH**
 
-IMBOPwiki follows:
-**prepare → submit → review → approve → publish**
+Publication is always explicit.
 
-Publication authority depends on content scope.
+## Publication vocabulary
+Reuse IMBOP vocabulary:
+DRAFT · SUBMITTED · PENDING_REVIEW · PUBLISHED · RETURNED · REJECTED · UNPUBLISHED · ARCHIVED where controlled archival termination is required.
 
-## 2. Governance Layers
-### SE Platform Governance
-SE controls platform-wide rules, system configuration and public institutional-directory authority.
+## Rules
+- Creating content never publishes it.
+- Editing published content creates a new working version.
+- The published version remains stable until the new version is approved/published.
+- RETURN and REJECT require attributable reasons.
+- UNPUBLISH removes publication authority without destroying governed history.
+- Public readers see only the authorized published version.
+- Draft/version history is privileged.
 
-### Institution Governance
-Institution administrators govern institution-owned knowledge and institutional communities.
+## Authority
+SE controls platform-wide governance and reserved platform publication authority. Institution administrators govern institution-scoped content/community operations within granted permissions. Community roles govern only their community scope. Authors/contributors may work within their permissions. Reviewers/publishers require explicit authority.
 
-### Community Governance
-Designated community roles manage participation and content within their granted authority.
+## Communities
+Communities are first-class governed objects. MVP lifecycle:
+**DRAFT → ACTIVE → PAUSED → ACTIVE → ARCHIVED**
 
-### Editorial Governance
-Editors/reviewers prepare and review content for publication within assigned scope.
+Private working groups are private governed communities. Community membership is separate from institutional membership.
 
-### Moderation
-Moderators manage conduct, abuse, spam and discussion quality without automatically acquiring publication authority.
+## Moderation
+Discussion: OPEN · LOCKED · ARCHIVED · REMOVED
+Entry: ACTIVE · HIDDEN · REMOVED
 
-## 3. Content Lifecycle
-**DRAFT → SUBMITTED → IN REVIEW → APPROVED → PUBLISHED → REVIEW / UPDATE → ARCHIVED**
+All governance and moderation actions are attributable and auditable.
 
-Exception paths:
-**SUBMITTED → RETURNED**
-**IN REVIEW → REJECTED**
-**PUBLISHED → UNPUBLISHED / ARCHIVED**
-
-Return/rejection records a reason where the workflow requires it.
-
-## 4. Separation of Duties
-Where practical:
-- contributor prepares;
-- reviewer reviews;
-- authorized publisher publishes;
-- moderator manages conduct;
-- SE retains platform authority.
-
-Multiple roles may be held where explicitly permitted, but permissions must be deliberate.
-
-## 5. Attribution
-Published contributions retain author/contributor identity, institution/community context, creation time, update time and publication information.
-
-## 6. Versioning
-Meaningful published changes preserve version history. The current version is presented in discovery; historical versions remain audit/knowledge-maintenance records subject to access.
-
-## 7. Review Reasons
-RETURN and REJECT require a recorded reason where the workflow uses those actions. The reason is retained for accountability and shown to the appropriate recipient.
-
-## 8. Moderation Boundary
-Moderation is not the same as publication control. Moderators may act on spam, abuse, inappropriate conduct, duplicate/misleading discussion and rule violations, but should not gain unrelated institutional authority.
-
-## 9. Public Publication
-A record being created, saved, submitted, approved or visible to its author does not make it publicly discoverable unless publication state and visibility permit it.
-
-## 10. Institutional Boundaries
-Institution-owned content remains governed by its institutional scope. Cross-institution participation is allowed only where rules explicitly permit it.
-
-## 11. Audit
-Governance actions should be auditable: create, edit, submit, review, approve, publish, return, reject, unpublish, archive, membership changes, role changes and moderation actions.
-
-## 12. Governance Rule
-When uncertain whether content should be public:
-**keep it non-public until the authorized decision is made.**
+## Evidence
+The system must evidence who created, edited, submitted, reviewed, published, returned, rejected, unpublished, moderated and changed community membership/roles. Reuse existing IMBOP audit.

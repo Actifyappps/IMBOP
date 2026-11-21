@@ -1,68 +1,35 @@
 # IMBOPwiki — Information Architecture
+**Status:** Frozen for MVP engineering
 
-## 1. Core Structure
-**Communities → Topics → Content → Discussion → Economic Objects**
+## Primary navigation
+Home · Discover · Communities · Knowledge · Opportunities · Discussions · Events · Resources · Notifications · My Contributions · My Communities
 
-A community provides context. A topic provides subject organization. Content provides durable knowledge. Discussion provides participation. Economic-object links connect knowledge to the IMBOP economic graph.
+## Institutional administration
+Institution Wiki · Institution Communities · Review Queue · Publications · Announcements · Community Communications · Moderation · Institutional Knowledge
 
-## 2. Primary Spaces
-### Global IMBOPwiki
-Cross-network published knowledge that SE permits to be publicly discoverable.
+SE retains platform-level governance.
 
-### Institutional Space
-Knowledge and discussions belonging to a specific institution/network.
+## Context model
+**Wiki Space** = organization/presentation/governance context only; never an authorization boundary.
 
-### Community Space
-A subject or interest community that may span members of an institution or, where permitted, multiple institutional contexts.
+**Community** = participation and access context.
 
-### Private Working Group
-Restricted collaboration space for authorized participants.
+**Content Item** = durable knowledge identity.
 
-## 3. Content Types
-Initial conceptual types:
-- Wiki Article
-- Discussion
-- Question & Answer
-- Resource
-- Report
-- Research Note
-- Opportunity Brief
-- Announcement
-- Event/Activity reference
-- Collaborative Project reference
+**Content Version** = authored snapshot.
 
-The MVP should avoid unnecessary proliferation. Types sharing governance/data behavior should use a common content foundation.
+**Published Version** = exact version currently authorized for eligible readers.
 
-## 4. Content Relationships
-Content may belong to a community, have topics, reference other content, institutions, members, businesses, products/services, offers, needs or opportunities, generate discussion and be cited or reused.
+**Discussion** = first-class collaboration context attached to a community, content item, or both.
 
-## 5. Discovery
-Support global published content, institution-scoped content, community content, topic browsing, search, related content and related businesses/opportunities.
+## Scope order
+1. published + public
+2. authenticated eligible access
+3. active institutional membership
+4. active community membership
+5. explicit private working-group membership
+6. platform/SE authority
 
-Discovery must respect visibility and authorization. Search is not an authorization boundary.
+No navigation item, space, link, notification, search result or UUID creates authorization.
 
-## 6. Navigation Concept
-**HOME → IMBOPwiki → COMMUNITY → TOPIC → CONTENT → DISCUSSION → BUSINESS/OPPORTUNITY → ENQUIRY**
-
-The wiki should not become a disconnected product island.
-
-## 7. Content Page
-As appropriate: title, summary, contributor, community, topics, publication status, published/updated dates, body, related content, related IMBOP objects, discussion, version/history and role-based actions.
-
-## 8. Community Page
-A community should expose name, purpose, description, visibility, membership/access rules, topics, published content, discussions, relevant businesses/opportunities, announcements and governance controls.
-
-## 9. Discussion
-Discussion should be attached to a useful context wherever possible: article, opportunity, community, Q&A or institutional working group.
-
-## 10. Search
-Search must respect publication state, institutional scope, community membership and private-group membership.
-
-## 11. Notifications
-Examples: new article, discussion reply, mention, returned content, publication, community announcement and opportunity-related update.
-
-## 12. Public vs Private
-A draft, submitted, returned or rejected item must not appear in public discovery merely because its route exists. Private content must not leak through search, direct URLs, related-content widgets, API responses, notifications or cached metadata.
-
-## 13. Future Expansion
-Leave room for events, learning modules, collaborative projects, expert profiles, research libraries, multilingual content, richer media and external integrations.
+Search/discovery is derived from already-authorized records.
