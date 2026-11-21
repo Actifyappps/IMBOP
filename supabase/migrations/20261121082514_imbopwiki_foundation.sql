@@ -856,7 +856,7 @@ revoke all on function public.wiki_create_version(uuid,text,text,text,text),
   public.wiki_reject(uuid,text),
   public.wiki_unpublish(uuid,text),
   public.wiki_archive(uuid,text)
-from public;
+from public, anon;
 
 grant execute on function public.wiki_create_version(uuid,text,text,text,text),
   public.wiki_submit(uuid),
@@ -869,4 +869,6 @@ grant execute on function public.wiki_create_version(uuid,text,text,text,text),
 to authenticated;
 
 -- Governance hardening: direct clients may not bypass publication state transitions.
-revoke update (publication_state, published_version_id, published_at, published_by_user_id, archived_at) on public.wiki_content from authenticated;
+-- Do not grant table-wide UPDATE to authenticated clients; expose only ordinary editable metadata.
+revoke update on public.wiki_content from authenticated;
+grant update (title, slug, summary) on public.wiki_content to authenticated;
