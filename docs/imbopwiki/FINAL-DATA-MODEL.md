@@ -70,5 +70,7 @@ RLS is the database authorization boundary.
 - Links do not grant target access.
 - Notifications do not grant target access.
 - Space membership/presentation does not grant authorization.
+- When `community_id` is present, active community membership is the private authorization boundary; institution membership alone does not bypass it.
+- Revoked/suspended community membership removes private working-group access.
 - Published version remains stable while working edits are under review.
 - Publication lifecycle columns are controlled through authenticated governance functions.
