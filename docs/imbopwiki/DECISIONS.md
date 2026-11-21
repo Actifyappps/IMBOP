@@ -82,3 +82,32 @@
 **Decision:** A wiki space may organize presentation and governance, but it cannot independently grant access.
 
 **Reason:** Multiple overlapping scope fields are a security risk. Authorization must derive from explicit publication, institution, community, private-group and platform permissions.
+
+
+## Decision 019 — Product and Information Architecture Frozen
+**Decision:** The MVP product boundary and information architecture are now frozen for engineering planning.
+**Reason:** Schema work must implement a settled product, not continue to invent one.
+
+## Decision 020 — Global Communities Are Allowed in MVP
+**Decision:** Communities may be global/cross-institution or institution-scoped. A private working group is a private community.
+**Reason:** IMBOPwiki must support cross-institution economic communities while preserving explicit membership control.
+
+## Decision 021 — Discussions Are First-Class Collaboration Objects
+**Decision:** Discussions are separate first-class records, not a content type.
+**Reason:** Discussion access, moderation and lifecycle differ from durable knowledge publication.
+
+## Decision 022 — Wiki Review Evidence Is Wiki-Specific
+**Decision:** Use a wiki-specific review ledger unless an existing generic IMBOP event mechanism is proven to provide equivalent review evidence.
+**Reason:** Existing review functions are domain-specific; wiki governance needs attributable state-transition evidence without duplicating business-domain review logic.
+
+## Decision 023 — Communications Infrastructure Is Reused
+**Decision:** Wiki notifications use the existing IMBOP Communications Infrastructure. A second wiki notification/delivery system is prohibited unless a concrete gap is proven.
+**Reason:** IMBOP already has auditable communication records, delivery state, in-app inbox/read behaviour, idempotency and delivery infrastructure.
+
+## Decision 024 — MVP Media Reuses Existing Governance
+**Decision:** Wiki media/attachments reuse existing IMBOP storage/media security and publication rules. No parallel wiki media subsystem is part of the first migration unless a concrete gap is demonstrated.
+**Reason:** Stored media must inherit the authorization discipline of the record it belongs to.
+
+## Decision 025 — Final Model Gate
+**Decision:** The next engineering artifact is a migration design plus RLS policy/test matrix. No production schema change is authorized until that design is checked against the frozen model.
+**Reason:** The highest-risk surface is scope → RLS → publication → membership → links → notifications, not table creation itself.
