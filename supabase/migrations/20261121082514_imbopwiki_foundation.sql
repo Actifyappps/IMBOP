@@ -231,7 +231,7 @@ create or replace function private.is_wiki_community_owner(p_community_id uuid)
 returns boolean
 language sql stable security definer
 set search_path = ''
-as $
+as $$
   select exists (
     select 1
     from public.wiki_community_memberships m
@@ -247,7 +247,7 @@ as $
       and c.owner_user_id = (select auth.uid())
   )
   or private.has_platform_permission('platform_admin');
-$;
+$$;
 
 revoke all on function private.is_wiki_community_owner(uuid) from public, anon;
 grant execute on function private.is_wiki_community_owner(uuid) to authenticated;
@@ -660,7 +660,7 @@ returns public.wiki_content_versions
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_content public.wiki_content;
   v_version public.wiki_content_versions;
