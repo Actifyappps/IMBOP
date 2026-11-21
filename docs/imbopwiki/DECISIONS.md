@@ -48,3 +48,11 @@
 ## Decision 012 — One Core, Many Networks
 **Decision:** IMBOPwiki is designed to serve many institutional networks from shared infrastructure.
 **Reason:** This preserves the IMBOP multi-tenant platform model and avoids a fork-per-institution architecture.
+
+
+## Decision 013 — Reuse IMBOP Authority Before Adding Wiki Infrastructure
+**Decision:** IMBOPwiki must extend and reuse the existing IMBOP identity, tenancy, membership, publication, communications, audit and security architecture wherever those capabilities already satisfy the requirement.
+
+**Reason:** IMBOPwiki is a native knowledge and collaboration domain inside IMBOP, not a second platform. Duplicate identity, tenancy, communication, audit or economic records would create conflicting sources of truth and unnecessary security risk.
+
+**Implementation consequence:** New wiki-specific primitives are limited to knowledge/content, communities, community membership, versions, discussions, content links and other capabilities demonstrated to be genuinely absent from the existing IMBOP domain model.
