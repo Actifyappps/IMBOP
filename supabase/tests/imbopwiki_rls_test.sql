@@ -1,10 +1,14 @@
 -- IMBOPwiki RLS adversarial test specification.
 -- Requires the Supabase test-helper package in the local test environment.
 -- This file is intentionally not executed against production.
+--
+-- The suite is designed for the branch migration stack. It deliberately
+-- exercises direct table access, governed RPCs, scope changes, and revoked
+-- community membership.
 
 begin;
 
-select plan(13);
+select plan(20);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
@@ -47,7 +51,7 @@ begin
      'DRAFT','PRIVATE',draft_v1,null);
 
   insert into public.wiki_communities(id,space_id,institution_id,name,slug,status,visibility,owner_user_id)
-  values (community_a,space_a,inst_a,'Test Community A','imbopwiki-test-community-a','ACTIVE','INSTITUTION',u_a);
+  values (community_a,space_a,inst_a,'Test Community A','imbopwiki-test-community-a','ACTIVE','PRIVATE',u_a);
 
   insert into public.wiki_community_memberships(id,community_id,user_id,institution_id,role,status,joined_at,approved_at,approved_by_user_id)
   values (membership_b,community_a,u_b,inst_a,'MEMBER','ACTIVE',now(),now(),u_a);
@@ -62,7 +66,7 @@ end $$;
 
 select tests.authenticate_as('imbopwiki-a@test.invalid');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-public-test'),1,'owner can read public content');
-select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),1,'author can read own draft');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),1,'author can read own institution draft');
 
 select tests.authenticate_as('imbopwiki-b@test.invalid');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'cross-tenant user cannot read draft by direct id');
@@ -72,23 +76,84 @@ select ok((select tests.rls_enabled('public.wiki_content')), 'wiki_content has R
 select ok((select tests.rls_enabled('public.wiki_content_versions')), 'wiki_content_versions has RLS');
 select ok((select tests.rls_enabled('public.wiki_communities')), 'wiki_communities has RLS');
 
+select is((select count(*)::int from public.wiki_communities where slug='imbopwiki-test-community-a'),1,'active community member can read private community');
+
+select tests.authenticate_as_service_role();
+update public.wiki_community_memberships
+   set status='REVOKED'
+ where id=(select id from public.wiki_community_memberships where user_id=tests.get_supabase_uid('imbopwiki-b@test.invalid'));
+
 select tests.authenticate_as('imbopwiki-b@test.invalid');
-select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-draft-test'),0,'cross-tenant user cannot read draft version history');
-select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'draft remains undiscoverable');
+select is((select count(*)::int from public.wiki_communities where slug='imbopwiki-test-community-a'),0,'revoked community member loses private community access');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'revoked community membership cannot expose private content');
+select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-draft-test'),0,'revoked member cannot read private version history');
+
+select tests.authenticate_as('imbopwiki-a@test.invalid');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-public-test' and v.id=c.published_version_id),1,'published version is the public version');
 
-select is_empty($ update public.wiki_community_memberships set role='OWNER' where id=(select id from public.wiki_community_memberships where user_id=(select tests.get_supabase_uid('imbopwiki-b@test.invalid')) and community_id=(select id from public.wiki_communities where slug='imbopwiki-test-community-a')) returning id $, 'member cannot self-escalate to community owner');
+select is(
+  (select count(*)::int from public.wiki_content where slug='imbopwiki-public-test' and current_version_id=published_version_id),
+  1,
+  'working version initially equals published version'
+);
 
+select tests.authenticate_as_service_role();
+update public.wiki_content
+   set visibility='PRIVATE', publication_state='UNPUBLISHED', published_version_id=null
+ where slug='imbopwiki-public-test';
+
+select tests.authenticate_as('imbopwiki-b@test.invalid');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-public-test'),0,'unpublished/private content is no longer publicly readable');
+
+select tests.authenticate_as('imbopwiki-a@test.invalid');
+select throws_ok(
+  $$select public.wiki_start_review((select id from public.wiki_content where slug='imbopwiki-draft-test'))$$,
+  'P0001',
+  'unauthorized reviewer cannot start review'
+);
+
+select tests.authenticate_as_service_role();
+update public.wiki_content
+   set publication_state='PUBLISHED', visibility='PUBLIC', published_version_id=current_version_id, published_at=now(), published_by_user_id=tests.get_supabase_uid('imbopwiki-a@test.invalid')
+ where slug='imbopwiki-public-test';
+
+select tests.authenticate_as('imbopwiki-a@test.invalid');
+select is(
+  (select public.wiki_create_version((select id from public.wiki_content where slug='imbopwiki-public-test'),'Public Test v2','Version 2',null,'QC working edit')).version_number,
+  2,
+  'new working version can be created'
+);
+select is(
+  (select current_version_id from public.wiki_content where slug='imbopwiki-public-test'),
+  (select id from public.wiki_content_versions where content_id=(select id from public.wiki_content where slug='imbopwiki-public-test') and version_number=2),
+  'current version advances to working version'
+);
+select is(
+  (select published_version_id from public.wiki_content where slug='imbopwiki-public-test'),
+  (select id from public.wiki_content_versions where content_id=(select id from public.wiki_content where slug='imbopwiki-public-test') and version_number=1),
+  'published version remains stable while working version changes'
+);
+
+select tests.authenticate_as('imbopwiki-b@test.invalid');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-public-test'),1,'public readers still see only the published content identity');
+select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-public-test' and v.id=c.published_version_id),1,'public readers resolve the authorized published version');
 select is_empty(
   $ update public.wiki_content
-     set title = 'Cross-tenant mutation'
+     set title='Cross-tenant mutation'
    where slug='imbopwiki-public-test'
    returning id $,
   'cross-tenant user cannot mutate another institution content'
 );
-
-select is_empty($ update public.wiki_content
-     set publication_state = 'PUBLISHED'
+select is_empty(
+  $ update public.wiki_community_memberships
+     set role='OWNER'
+   where id=(select id from public.wiki_community_memberships where user_id=tests.get_supabase_uid('imbopwiki-b@test.invalid'))
+   returning id $,
+  'member cannot self-escalate to community owner'
+);
+select is_empty(
+  $ update public.wiki_content
+     set publication_state='PUBLISHED'
    where slug='imbopwiki-draft-test'
    returning id $,
   'authenticated client cannot bypass publication lifecycle columns'
