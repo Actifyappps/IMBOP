@@ -27,6 +27,8 @@ declare
   public_v1 uuid := gen_random_uuid();
   draft_content uuid := gen_random_uuid();
   draft_v1 uuid := gen_random_uuid();
+  community_content uuid := gen_random_uuid();
+  community_v1 uuid := gen_random_uuid();
   community_a uuid := gen_random_uuid();
   membership_b uuid := gen_random_uuid();
 begin
@@ -47,8 +49,10 @@ begin
   values
     (public_content,space_a,inst_a,u_a,'ARTICLE','Public Test','imbopwiki-public-test',
      'PUBLISHED','PUBLIC',public_v1,public_v1),
-    (draft_content,space_a,inst_a,u_a,'ARTICLE','Draft Test','imbopwiki-draft-test',
-     'DRAFT','PRIVATE',draft_v1,null);
+    (draft_content,space_a,null,null,u_a,'ARTICLE','Draft Test','imbopwiki-draft-test',
+     'DRAFT','PRIVATE',draft_v1,null),
+    (community_content,space_a,community_a,inst_a,u_b,'ARTICLE','Community Draft','imbopwiki-community-draft',
+     'DRAFT','PRIVATE',community_v1,null);
 
   insert into public.wiki_communities(id,space_id,institution_id,name,slug,status,visibility,owner_user_id)
   values (community_a,space_a,inst_a,'Test Community A','imbopwiki-test-community-a','ACTIVE','PRIVATE',u_a);
@@ -59,14 +63,15 @@ begin
   insert into public.wiki_content_versions(id,content_id,version_number,created_by_user_id,title,body)
   values
     (public_v1,public_content,1,u_a,'Public Test','Version 1'),
-    (draft_v1,draft_content,1,u_a,'Draft Test','Private draft');
+    (draft_v1,draft_content,1,u_a,'Draft Test','Private draft'),
+    (community_v1,community_content,1,u_b,'Community Draft','Private community draft');
 
   perform set_config('request.jwt.claim.sub',u_b::text,true);
 end $$;
 
 select tests.authenticate_as('imbopwiki-a@test.invalid');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-public-test'),1,'owner can read public content');
-select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),1,'author can read own institution draft');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),1,'author can read own global draft');
 
 select tests.authenticate_as('imbopwiki-b@test.invalid');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'cross-tenant user cannot read draft by direct id');
@@ -77,6 +82,7 @@ select ok((select tests.rls_enabled('public.wiki_content_versions')), 'wiki_cont
 select ok((select tests.rls_enabled('public.wiki_communities')), 'wiki_communities has RLS');
 
 select is((select count(*)::int from public.wiki_communities where slug='imbopwiki-test-community-a'),1,'active community member can read private community');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-community-draft'),1,'active community member can read private community content');
 
 select tests.authenticate_as_service_role();
 update public.wiki_community_memberships
@@ -85,7 +91,7 @@ update public.wiki_community_memberships
 
 select tests.authenticate_as('imbopwiki-b@test.invalid');
 select is((select count(*)::int from public.wiki_communities where slug='imbopwiki-test-community-a'),0,'revoked community member loses private community access');
-select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'revoked community membership cannot expose private content');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-community-draft'),0,'revoked community membership cannot expose private community content');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-draft-test'),0,'revoked member cannot read private version history');
 
 select tests.authenticate_as('imbopwiki-a@test.invalid');
