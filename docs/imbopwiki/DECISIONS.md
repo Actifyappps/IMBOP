@@ -56,3 +56,29 @@
 **Reason:** IMBOPwiki is a native knowledge and collaboration domain inside IMBOP, not a second platform. Duplicate identity, tenancy, communication, audit or economic records would create conflicting sources of truth and unnecessary security risk.
 
 **Implementation consequence:** New wiki-specific primitives are limited to knowledge/content, communities, community membership, versions, discussions, content links and other capabilities demonstrated to be genuinely absent from the existing IMBOP domain model.
+
+
+## Decision 014 — Published Version Is Separate from Working Version
+**Decision:** Wiki content must distinguish the latest working version from the version currently authorized for publication.
+
+**Reason:** Editing a published article must never expose an unreviewed draft. The content record therefore carries separate current and published version references.
+
+## Decision 015 — Working Groups Are Governed Communities in MVP
+**Decision:** A private working group is represented by a private, governed community rather than a second membership universe.
+
+**Reason:** This keeps participation, moderation and RLS in one model while still supporting sensitive collaboration.
+
+## Decision 016 — Links and Notifications Never Grant Access
+**Decision:** Wiki links and notifications are references only. They cannot grant access to their targets.
+
+**Reason:** The target object's own authorization must always be evaluated independently, preventing cross-tenant leakage and notification-based side doors.
+
+## Decision 017 — Reuse IMBOP Publication Vocabulary
+**Decision:** IMBOPwiki should reuse the established IMBOP publication lifecycle wherever semantically appropriate.
+
+**Reason:** A second publication vocabulary would create unnecessary governance and implementation divergence.
+
+## Decision 018 — Space Is Not an Authorization Boundary
+**Decision:** A wiki space may organize presentation and governance, but it cannot independently grant access.
+
+**Reason:** Multiple overlapping scope fields are a security risk. Authorization must derive from explicit publication, institution, community, private-group and platform permissions.
