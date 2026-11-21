@@ -89,7 +89,8 @@ Key fields:
 - `title`
 - `slug`
 - `summary`
-- `current_version_id`
+- `current_version_id` — latest working version
+- `published_version_id` — version currently authorized for publication; nullable while unpublished
 - `publication_state`
 - `visibility`
 - `published_at`
@@ -297,7 +298,7 @@ IN_REVIEW
 
 ARCHIVED is a terminal/controlled archival state rather than a casual delete.
 
-The exact states should be reconciled with the existing IMBOP publication-state vocabulary before migration.
+Use the existing IMBOP publication-state vocabulary wherever semantically appropriate: DRAFT, SUBMITTED, PENDING_REVIEW, PUBLISHED, RETURNED, REJECTED, UNPUBLISHED. Do not expose current working versions as public merely because current_version_id changed.
 
 ## 7. Community State Machine
 
@@ -369,19 +370,18 @@ For email/WhatsApp/SMS/push:
 
 Before SQL is written, settle:
 
-1. whether `wiki_spaces` is necessary or whether institution/community can directly own content;
+1. whether `wiki_spaces` is retained for organization/governance presentation in MVP;
 2. whether global communities are allowed in MVP;
-3. whether discussions are content types or separate first-class objects;
-4. exact content-type list for MVP;
-5. exact publication-state vocabulary;
-6. whether review events can reuse existing IMBOP review structures;
-7. exact community roles;
-8. whether working groups need their own table or can use community + membership policy;
-9. exact allowed economic-object link types;
-10. whether notifications can reuse an existing in-app notification table;
-11. media/attachment model;
-12. search implementation;
-13. retention/deletion policy.
+3. exact content-type list for MVP;
+4. whether discussions remain first-class objects or become a content type;
+5. whether existing review events can reuse existing IMBOP review structures;
+6. exact community roles;
+7. exact allowed economic-object link types;
+8. whether notifications can reuse an existing in-app notification table;
+9. media/attachment model;
+10. search implementation;
+11. retention/deletion policy;
+12. final RLS policy matrix and test fixtures.
 
 ## 13. Schema Verdict
 
