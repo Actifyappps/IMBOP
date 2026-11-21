@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(12);
+select plan(10);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
@@ -60,24 +60,22 @@ select tests.authenticate_as('imbopwiki-b@test.invalid');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'cross-tenant user cannot read draft by direct id');
 select is((select count(*)::int from public.wiki_content where slug='imbopwiki-public-test'),1,'public published content remains discoverable');
 
-select tests.authenticate_as('imbopwiki-a@test.invalid');
 select ok((select tests.rls_enabled('public.wiki_content')), 'wiki_content has RLS');
 select ok((select tests.rls_enabled('public.wiki_content_versions')), 'wiki_content_versions has RLS');
 select ok((select tests.rls_enabled('public.wiki_communities')), 'wiki_communities has RLS');
 
-select results_ne(
-  $$ update public.wiki_content
-     set institution_id = (select id from public.institutions where slug='imbopwiki-test-b')
-   where slug='imbopwiki-public-test'
-   returning id $$,
-  $$ values (null::uuid) $$,
-  'test harness can inspect update behavior'
-);
-
 select tests.authenticate_as('imbopwiki-b@test.invalid');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-draft-test'),0,'cross-tenant user cannot read draft version history');
-select is((select count(*)::int from public.wiki_content where published_version_id is null and slug='imbopwiki-draft-test'),0,'draft remains undiscoverable');
+select is((select count(*)::int from public.wiki_content where slug='imbopwiki-draft-test'),0,'draft remains undiscoverable');
 select is((select count(*)::int from public.wiki_content_versions v join public.wiki_content c on c.id=v.content_id where c.slug='imbopwiki-public-test' and v.id=c.published_version_id),1,'published version is the public version');
+
+select is_empty(
+  $ update public.wiki_content
+     set title = 'Cross-tenant mutation'
+   where slug='imbopwiki-public-test'
+   returning id $,
+  'cross-tenant user cannot mutate another institution content'
+);
 
 select * from finish();
 rollback;
