@@ -175,6 +175,28 @@ create table public.wiki_content_links (
 create index wiki_content_links_target_idx on public.wiki_content_links (target_type, target_id);
 create index wiki_content_links_content_idx on public.wiki_content_links (content_id);
 
+create or replace function private.wiki_link_target_allowed(p_content_id uuid, p_target_type text, p_target_id uuid)
+returns boolean
+language sql stable security definer
+set search_path = ''
+as $
+  select case p_target_type
+    when 'WIKI_CONTENT' then exists (select 1 from public.wiki_content t join public.wiki_content s on s.id = p_content_id where t.id = p_target_id and (s.institution_id is null or t.institution_id is null or s.institution_id = t.institution_id))
+    when 'INSTITUTION' then exists (select 1 from public.wiki_content s where s.id = p_content_id and exists (select 1 from public.institutions t where t.id = p_target_id) and (s.institution_id is null or s.institution_id = p_target_id))
+    when 'BUSINESS' then exists (select 1 from public.wiki_content s join public.businesses t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or s.institution_id = t.institution_id))
+    when 'BUSINESS_PROFILE' then exists (select 1 from public.wiki_content s join public.business_profiles t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or s.institution_id = t.institution_id))
+    when 'MARKET_ITEM' then exists (select 1 from public.wiki_content s join public.market_items t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or s.institution_id = t.institution_id))
+    when 'OPPORTUNITY' then exists (select 1 from public.wiki_content s join public.opportunities t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or s.institution_id = t.institution_id))
+    when 'ENQUIRY' then exists (select 1 from public.wiki_content s join public.enquiries t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or s.institution_id = t.institution_id))
+    when 'INTRODUCTION' then exists (select 1 from public.wiki_content s join public.introductions t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or s.institution_id = t.institution_id))
+    when 'COMMUNITY' then exists (select 1 from public.wiki_content s join public.wiki_communities t on t.id = p_target_id where s.id = p_content_id and (s.institution_id is null or t.institution_id is null or s.institution_id = t.institution_id))
+    else false
+  end;
+$;
+
+revoke all on function private.wiki_link_target_allowed(uuid,text,uuid) from public, anon;
+grant execute on function private.wiki_link_target_allowed(uuid,text,uuid) to authenticated;
+
 create table public.wiki_content_reviews (
   id uuid primary key default gen_random_uuid(),
   content_id uuid not null references public.wiki_content(id) on delete cascade,
@@ -287,17 +309,24 @@ using (
   or private.is_wiki_community_member(id)
 );
 
-create policy wiki_communities_manage on public.wiki_communities for all to authenticated
+create policy wiki_communities_insert on public.wiki_communities for insert to authenticated
+with check (
+  private.has_platform_permission('platform_admin')
+  or (institution_id is not null and private.has_institution_permission(institution_id,'publication_manage'))
+);
+
+create policy wiki_communities_update on public.wiki_communities for update to authenticated
 using (
   private.has_platform_permission('platform_admin')
   or (institution_id is not null and private.has_institution_permission(institution_id,'publication_manage'))
-  or private.is_wiki_community_manager(id)
 )
 with check (
   private.has_platform_permission('platform_admin')
   or (institution_id is not null and private.has_institution_permission(institution_id,'publication_manage'))
-  or private.is_wiki_community_manager(id)
 );
+
+create policy wiki_communities_delete_platform_only on public.wiki_communities for delete to authenticated
+using (private.has_platform_permission('platform_admin'));
 
 create policy wiki_community_memberships_read on public.wiki_community_memberships for select to authenticated
 using (
@@ -415,10 +444,19 @@ with check (
 
 create policy wiki_discussions_read on public.wiki_discussions for select to anon, authenticated
 using (
-  (visibility = 'PUBLIC' and status = 'OPEN' and exists (
-    select 1 from public.wiki_content c
-    where c.id = content_id and c.publication_state = 'PUBLISHED' and c.visibility = 'PUBLIC' and c.archived_at is null
-  ))
+  (
+    visibility = 'PUBLIC' and status = 'OPEN'
+    and (
+      exists (
+        select 1 from public.wiki_content c
+        where c.id = content_id and c.publication_state = 'PUBLISHED' and c.visibility = 'PUBLIC' and c.archived_at is null
+      )
+      or exists (
+        select 1 from public.wiki_communities c
+        where c.id = community_id and c.visibility = 'PUBLIC' and c.status = 'ACTIVE'
+      )
+    )
+  )
   or private.has_platform_permission('platform_admin')
   or (institution_id is not null and private.is_institution_member(institution_id))
   or (community_id is not null and private.is_wiki_community_member(community_id))
@@ -504,12 +542,17 @@ using (
   )
 );
 
-create policy wiki_content_links_manage on public.wiki_content_links for all to authenticated
-using (
-  private.has_platform_permission('platform_admin')
-  or exists (select 1 from public.wiki_content c where c.id = content_id and c.created_by_user_id = (select auth.uid()))
-)
+create policy wiki_content_links_insert on public.wiki_content_links for insert to authenticated
 with check (
+  (
+    private.has_platform_permission('platform_admin')
+    or exists (select 1 from public.wiki_content c where c.id = content_id and c.created_by_user_id = (select auth.uid()))
+  )
+  and private.wiki_link_target_allowed(content_id, target_type, target_id)
+);
+
+create policy wiki_content_links_delete on public.wiki_content_links for delete to authenticated
+using (
   private.has_platform_permission('platform_admin')
   or exists (select 1 from public.wiki_content c where c.id = content_id and c.created_by_user_id = (select auth.uid()))
 );
