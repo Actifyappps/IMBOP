@@ -658,15 +658,16 @@ create or replace function public.wiki_create_version(
 )
 returns public.wiki_content_versions
 language plpgsql
-security invoker
-set search_path = 'public,private'
-as $$
+security definer
+set search_path = ''
+as $
 declare
   v_content public.wiki_content;
   v_version public.wiki_content_versions;
   v_next integer;
 begin
-  select * into v_content from public.wiki_content where id = p_content_id for update;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  select * into v_content from public.wiki_content where id = p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if v_content.created_by_user_id <> (select auth.uid())
      and not private.has_platform_permission('platform_admin')
@@ -683,8 +684,7 @@ begin
 
   update public.wiki_content
      set current_version_id = v_version.id,
-         updated_at = now(),
-         publication_state = case when publication_state = 'PUBLISHED' then 'UNPUBLISHED' else publication_state end
+         updated_at = now()
    where id = p_content_id;
 
   return v_version;
@@ -692,17 +692,23 @@ end $$;
 
 create or replace function public.wiki_submit(p_content_id uuid)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content;
 begin
-  select * into r from public.wiki_content where id=p_content_id for update;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if r.created_by_user_id <> (select auth.uid())
      and not private.has_platform_permission('platform_admin')
   then raise exception 'Not authorized'; end if;
   if r.current_version_id is null then raise exception 'A working version is required'; end if;
-  if r.publication_state not in ('DRAFT','RETURNED','UNPUBLISHED') then raise exception 'Content cannot be submitted from its current state'; end if;
+  if r.publication_state = 'PUBLISHED' and r.current_version_id = r.published_version_id then
+    raise exception 'No unpublished working changes are waiting for review';
+  end if;
+  if r.publication_state not in ('DRAFT','RETURNED','UNPUBLISHED','PUBLISHED') then
+    raise exception 'Content cannot be submitted from its current state';
+  end if;
   update public.wiki_content set publication_state='SUBMITTED', updated_at=now() where id=p_content_id returning * into r;
   insert into public.wiki_content_reviews(content_id,action,from_state,to_state,reviewer_user_id)
   values(p_content_id,'SUBMIT',r.publication_state,'SUBMITTED',(select auth.uid()));
@@ -711,11 +717,12 @@ end $$;
 
 create or replace function public.wiki_start_review(p_content_id uuid)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content; v_from text;
 begin
-  select * into r from public.wiki_content where id=p_content_id for update;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if not private.has_platform_permission('platform_admin')
      and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
@@ -730,11 +737,12 @@ end $$;
 
 create or replace function public.wiki_publish(p_content_id uuid, p_notes text default null)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content; v_from text;
 begin
-  select * into r from public.wiki_content where id=p_content_id for update;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if not private.has_platform_permission('platform_admin')
      and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
@@ -758,11 +766,12 @@ end $$;
 
 create or replace function public.wiki_return(p_content_id uuid, p_notes text)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content; v_from text;
 begin
-  if nullif(trim(p_notes),'') is null then raise exception 'A return reason is required'; end if;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  if nullif(trim(p_notes),'') is null then raise exception 'A return reason is required'; end if;
   select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if not private.has_platform_permission('platform_admin')
@@ -778,11 +787,12 @@ end $$;
 
 create or replace function public.wiki_reject(p_content_id uuid, p_notes text)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content; v_from text;
 begin
-  if nullif(trim(p_notes),'') is null then raise exception 'A rejection reason is required'; end if;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  if nullif(trim(p_notes),'') is null then raise exception 'A rejection reason is required'; end if;
   select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if not private.has_platform_permission('platform_admin')
@@ -798,11 +808,12 @@ end $$;
 
 create or replace function public.wiki_unpublish(p_content_id uuid, p_notes text default null)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content; v_from text;
 begin
-  select * into r from public.wiki_content where id=p_content_id for update;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if not private.has_platform_permission('platform_admin')
      and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
@@ -819,11 +830,12 @@ end $$;
 
 create or replace function public.wiki_archive(p_content_id uuid, p_notes text default null)
 returns public.wiki_content
-language plpgsql security invoker set search_path='public,private'
+language plpgsql security definer set search_path = ''
 as $$
 declare r public.wiki_content; v_from text;
 begin
-  select * into r from public.wiki_content where id=p_content_id for update;
+
+  if (select auth.uid()) is null then raise exception 'Authentication required'; end if;  select * into r from public.wiki_content where id=p_content_id for update;
   if not found then raise exception 'Wiki content not found'; end if;
   if not private.has_platform_permission('platform_admin')
      and not (r.institution_id is not null and private.has_institution_permission(r.institution_id,'publication_manage'))
