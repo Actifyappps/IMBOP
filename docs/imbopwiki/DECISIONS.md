@@ -111,3 +111,12 @@
 ## Decision 025 — Final Model Gate
 **Decision:** The next engineering artifact is a migration design plus RLS policy/test matrix. No production schema change is authorized until that design is checked against the frozen model.
 **Reason:** The highest-risk surface is scope → RLS → publication → membership → links → notifications, not table creation itself.
+
+
+## Decision 019 — Private Community Membership Is the Authorization Boundary
+
+**Decision:** When a wiki object is explicitly community-scoped, active community membership is required for private/working-group access. Institution membership alone does not bypass the community boundary.
+
+**Reason:** A private working group is a governed community, not merely an institution-labelled folder. Allowing institution membership to expose its content would collapse the distinction between institution scope and private collaboration scope.
+
+**Consequence:** Content, versions, discussions, discussion entries, and links inherit the community authorization boundary when `community_id` is present. Revoked/suspended community membership removes private access. Public publication remains governed separately.
