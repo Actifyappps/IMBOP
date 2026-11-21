@@ -870,4 +870,3 @@ to authenticated;
 
 -- Governance hardening: direct clients may not bypass publication state transitions.
 revoke update (publication_state, published_version_id, published_at, published_by_user_id, archived_at) on public.wiki_content from authenticated;
-grant update (publication_state, published_version_id, published_at, published_by_user_id, archived_at) on public.wiki_content to authenticated;
