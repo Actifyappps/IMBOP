@@ -4,7 +4,7 @@
 
 begin;
 
-select plan(12);
+select plan(13);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
@@ -85,6 +85,13 @@ select is_empty(
    where slug='imbopwiki-public-test'
    returning id $,
   'cross-tenant user cannot mutate another institution content'
+);
+
+select is_empty($ update public.wiki_content
+     set publication_state = 'PUBLISHED'
+   where slug='imbopwiki-draft-test'
+   returning id $,
+  'authenticated client cannot bypass publication lifecycle columns'
 );
 
 select * from finish();
