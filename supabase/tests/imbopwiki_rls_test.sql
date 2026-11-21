@@ -8,7 +8,7 @@
 
 begin;
 
-select plan(20);
+select plan(23);
 
 select tests.create_supabase_user('imbopwiki-a@test.invalid');
 select tests.create_supabase_user('imbopwiki-b@test.invalid');
@@ -151,11 +151,12 @@ select is_empty(
    returning id $,
   'member cannot self-escalate to community owner'
 );
-select is_empty(
+select throws_ok(
   $ update public.wiki_content
      set publication_state='PUBLISHED'
    where slug='imbopwiki-draft-test'
    returning id $,
+  '42501',
   'authenticated client cannot bypass publication lifecycle columns'
 );
 
